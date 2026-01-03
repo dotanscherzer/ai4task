@@ -45,13 +45,35 @@ router.post('/state', async (req: Request, res: Response) => {
     const topicQuestions = questions.filter((q: any) => q.topicNumber === currentTopic && q.enabled);
     const nextQuestion = topicQuestions[0];
 
-      res.json({
-        interview: {
-          id: interview._id.toString(),
-          manager_name: interview.managerName,
-          status: interview.status,
-          selected_topics: interview.selectedTopics,
-        },
+    // If no messages exist and there's a first question, create a bot message for it
+    if (recentMessages.length === 0 && nextQuestion) {
+      const firstBotMessage = new ChatMessage({
+        interviewId,
+        role: 'bot',
+        content: nextQuestion.questionText,
+        topicNumber: currentTopic,
+        questionText: nextQuestion.questionText,
+      });
+      await firstBotMessage.save();
+      
+      // Reload recent messages to include the new one
+      const updatedMessages = await ChatMessage.find({
+        interviewId,
+      })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean();
+      recentMessages.length = 0;
+      recentMessages.push(...updatedMessages);
+    }
+
+    res.json({
+      interview: {
+        id: interview._id.toString(),
+        manager_name: interview.managerName,
+        status: interview.status,
+        selected_topics: interview.selectedTopics,
+      },
       questions: questions.map((q: any) => ({
         topic_number: q.topicNumber,
         question_text: q.questionText,
