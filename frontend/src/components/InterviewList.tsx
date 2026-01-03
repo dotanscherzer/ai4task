@@ -6,6 +6,7 @@ interface Interview {
   managerRole?: string;
   status: string;
   shareToken: string;
+  selectedTopics: number[];
   createdAt: string;
 }
 
