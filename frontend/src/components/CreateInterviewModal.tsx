@@ -14,43 +14,43 @@ interface CreateInterviewModalProps {
 const TOPICS = [
   { 
     number: 1, 
-    label: 'הבנת מבנה HLD - רכיבים עיקריים ומבנה טיפוסי',
-    description: 'שאלות על הגדרת HLD בפרויקט, המבנה הטיפוסי והרכיבים העיקריים'
+    label: 'תיאור האתגר והכאב המרכזי',
+    description: 'שאלות על איפה בדיוק "כואב" בפירוק HLD, איך האתגר מתבטא בשטח ולמה זה קורה'
   },
   { 
     number: 2, 
-    label: 'הגדרת Epic - קריטריונים ומספר טיפוסי',
-    description: 'שאלות על איך מגדירים Epic, הקריטריונים להגדרת Epic חדש ומספר Epics טיפוסי בפרויקט'
+    label: 'השפעה עסקית ומיקודים ארגוניים',
+    description: 'שאלות על מיקודים עסקיים שנפגעים, הפגיעות המשמעותיות והעלות העסקית של פירוק לא טוב'
   },
   { 
     number: 3, 
-    label: 'פירוק Epic ל-Features - גודל ומספר',
-    description: 'שאלות על תהליך הפירוק ל-Features, הגודל הטיפוסי של Feature ומספר Features ל-Epic'
+    label: 'קהל יעד, היקף ותלותים',
+    description: 'שאלות על צרכני הפירוק, היקף המדורים, תדירות, סוגי פרויקטים בעייתיים וצווארי בקבוק'
   },
   { 
     number: 4, 
-    label: 'יצירת Stories מ-Features - קריטריונים ומספר',
-    description: 'שאלות על יצירת Stories, הקריטריונים ל-Story טוב ומספר Stories טיפוסי ב-Feature'
+    label: 'מדדים (KPI) והשפעה מדידה',
+    description: 'שאלות על מדדים שנפגעים בפועל ויעדי השיפור הרצויים'
   },
   { 
     number: 5, 
-    label: 'עקביות בין מדורים - אתגרים וכלים',
-    description: 'שאלות על שמירה על עקביות בין מדורים שונים, האתגרים והכלים/תהליכים התומכים'
+    label: 'מה נחשב הצלחה (ללא קשר ל-AI)',
+    description: 'שאלות על Definition of Ready, המינימום המספיק, גרנולריות וקריטריוני אישור'
   },
   { 
     number: 6, 
-    label: 'הערכה ותכנון - תהליך וטיפול באי-ודאות',
-    description: 'שאלות על הערכת Epics ו-Features, תהליך התכנון מ-HLD וטיפול באי-ודאות'
+    label: 'דאטה, כלים ותשתית תומכת',
+    description: 'שאלות על כלי Backlog, שמירת HLD, תבניות, אוצר מילים אחיד ומגבלות מידע'
   },
   { 
     number: 7, 
-    label: 'תלויות וסיכונים - זיהוי וניהול',
-    description: 'שאלות על טיפול בתלויות בין Epics/Features, הסיכונים העיקריים וניהולם'
+    label: 'מורכבות, סיכונים ושינוי ארגוני',
+    description: 'שאלות על Audit Trail, אחידות בין מדורים, Scope Churn, תלויות חיצוניות והתנגדות ארגונית'
   },
   { 
     number: 8, 
-    label: 'כלים ותהליכים - מפירוק HLD עד Stories',
-    description: 'שאלות על הכלים המשמשים לפירוק HLD, התהליך מ-HLD עד Stories ותיעוד'
+    label: 'Best Practices וצעדי המשך',
+    description: 'שאלות על Best Practices, פיילוט, תבניות אחידות, Workflow של Review/Approval ותוצרים נדרשים'
   },
 ];
 

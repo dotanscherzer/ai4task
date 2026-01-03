@@ -131,6 +131,10 @@ router.post('/message', async (req: Request, res: Response) => {
 
     const { interview, questions, topicStates } = data;
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:132',message:'Message handler entry',data:{action,message:message?.substring(0,30),selectedTopics:interview.selectedTopics,totalQuestions:questions.length,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+
     // Update status to in_progress if needed
     if (interview.status === 'not_started') {
       await interviewService.updateInterviewStatus(interview._id.toString(), 'in_progress');
@@ -170,6 +174,10 @@ router.post('/message', async (req: Request, res: Response) => {
       );
       const nextQuestion = remainingQuestions[0];
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:171',message:'Skip action - question check',data:{currentTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,hasNextQuestion:!!nextQuestion},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+
       if (nextQuestion) {
         const botMessage = new ChatMessage({
           interviewId,
@@ -190,6 +198,10 @@ router.post('/message', async (req: Request, res: Response) => {
           covered_points: currentTopicState?.coveredPoints || [],
         });
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:192',message:'Skip action - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         res.json({
           bot_message: 'סיימנו את כל השאלות. תודה!',
           next_action: 'END',
@@ -230,6 +242,10 @@ router.post('/message', async (req: Request, res: Response) => {
     const currentTopic = currentTopicState?.topicNumber || interview.selectedTopics[0];
     const topicQuestions = questions.filter((q: any) => q.topicNumber === currentTopic && q.enabled);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:229',message:'Topic selection',data:{selectedTopics:interview.selectedTopics,currentTopic,allTopicStates:topicStates.map((ts:any)=>({topic:ts.topicNumber,confidence:ts.confidence})),topicQuestionsCount:topicQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+
     // Get all questions that have already been asked (from bot messages)
     const askedQuestions = await ChatMessage.find({
       interviewId,
@@ -243,6 +259,10 @@ router.post('/message', async (req: Request, res: Response) => {
     const remainingQuestions = topicQuestions.filter(
       (q: any) => !askedQuestions.includes(q.questionText)
     );
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:245',message:'Questions filtering',data:{askedQuestionsCount:askedQuestions.length,askedQuestions:askedQuestions.slice(0,5),topicQuestionsCount:topicQuestions.length,remainingQuestionsCount:remainingQuestions.length,remainingQuestionTexts:remainingQuestions.map((q:any)=>q.questionText).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     // Try LLM service
     const llmResponse = await llmService.getNextAction(
@@ -263,6 +283,10 @@ router.post('/message', async (req: Request, res: Response) => {
           : undefined,
       }
     );
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:265',message:'LLM response',data:{hasLlmResponse:!!llmResponse,llmNextAction:llmResponse?.next_action,llmTopicNumber:llmResponse?.topic_number,llmBotMessage:llmResponse?.bot_message?.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     let response: any;
 
@@ -316,6 +340,11 @@ router.post('/message', async (req: Request, res: Response) => {
     } else {
       // Fallback: use static questions (only those not already asked)
       const nextQuestion = remainingQuestions[0];
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:318',message:'Before fallback decision',data:{hasNextQuestion:!!nextQuestion,currentTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),topicStates:topicStates.map((ts:any)=>({topic:ts.topicNumber,confidence:ts.confidence}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      
       if (nextQuestion) {
         response = {
           bot_message: nextQuestion.questionText,
@@ -347,6 +376,10 @@ router.post('/message', async (req: Request, res: Response) => {
           await answer.save();
         }
       } else {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:349',message:'No questions in current topic - checking other topics',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,totalQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length,remainingQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>!askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
         response = {
           bot_message: 'סיימנו את כל השאלות. תודה!',
           next_action: 'END',
@@ -357,6 +390,10 @@ router.post('/message', async (req: Request, res: Response) => {
         };
       }
     }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:361',message:'Final response',data:{nextAction:response.next_action,topicNumber:response.topic_number,hasBotMessage:!!response.bot_message,botMessagePreview:response.bot_message?.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     res.json(response);
   } catch (error: any) {

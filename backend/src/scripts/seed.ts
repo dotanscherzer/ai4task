@@ -6,45 +6,54 @@ import { Question } from '../models/Question';
 dotenv.config();
 
 const defaultQuestions = [
-  // Topic 1: Understanding HLD Structure
-  { topicNumber: 1, questionText: 'איך אתה מגדיר HLD בפרויקט שלך?', isDefault: true },
-  { topicNumber: 1, questionText: 'מה המבנה הטיפוסי של HLD שאתה רואה?', isDefault: true },
-  { topicNumber: 1, questionText: 'אילו רכיבים עיקריים כולל HLD?', isDefault: true },
+  // נושא 1 – תיאור האתגר והכאב המרכזי
+  { topicNumber: 1, questionText: 'איפה בדיוק "כואב" היום בפירוק HLD? (זמן / איכות / עקביות / תלויות / חזרתיות / חוסר בעלות)', isDefault: true },
+  { topicNumber: 1, questionText: 'כיצד האתגר מתבטא בשטח? (יותר שאלות? יותר סבבים? עיכובים? Stories לא מספיק "Ready"?)', isDefault: true },
+  { topicNumber: 1, questionText: 'למה זה קורה לדעתך? (אין סטנדרט? חוסר זמן? חוסר מידע? שונות בין מדורים?)', isDefault: true },
 
-  // Topic 2: Epic Definition
-  { topicNumber: 2, questionText: 'איך אתה מגדיר Epic?', isDefault: true },
-  { topicNumber: 2, questionText: 'מה הקריטריונים להגדרת Epic חדש?', isDefault: true },
-  { topicNumber: 2, questionText: 'כמה Epics בדרך כלל יש בפרויקט?', isDefault: true },
+  // נושא 2 – השפעה עסקית ומיקודים ארגוניים
+  { topicNumber: 2, questionText: 'על אילו מיקודים עסקיים האתגר הזה משפיע? (Time-to-Market, עמידה ברגולציה, יציבות, יעילות תפעולית, חוויית לקוח)', isDefault: true },
+  { topicNumber: 2, questionText: 'איפה הפגיעה הכי משמעותית היום? (רגולציה / בנקים / מוצר / תשתיות / שינוי רוחבי)', isDefault: true },
+  { topicNumber: 2, questionText: 'מה העלות העסקית של "פירוק לא טוב"? (דחיות, קנסות/ציות, פגיעה בהכנסות, עומס תפעולי)', isDefault: true },
 
-  // Topic 3: Feature Breakdown
-  { topicNumber: 3, questionText: 'איך אתה מפרק Epic ל-Features?', isDefault: true },
-  { topicNumber: 3, questionText: 'מה הגודל הטיפוסי של Feature?', isDefault: true },
-  { topicNumber: 3, questionText: 'איך אתה מחליט כמה Features צריך ל-Epic?', isDefault: true },
+  // נושא 3 – קהל יעד, היקף ותלותים
+  { topicNumber: 3, questionText: 'מי הצרכן הישיר של הפירוק ל-Epics / Features / Stories? (ארכיטקטים / SA / BA / ראשי צוותים / פיתוח / QA / תשתיות / אבטחת מידע)', isDefault: true },
+  { topicNumber: 3, questionText: 'כמה מדורים בממוצע מעורבים בפרויקט טיפוסי? ומה רמת התלויות ביניהם?', isDefault: true },
+  { topicNumber: 3, questionText: 'מה התדירות? כמה דרישות בחודש עוברות פירוק מלא ל-Epics / Features / Stories?', isDefault: true },
+  { topicNumber: 3, questionText: 'באיזה סוג פרויקטים זה כמעט תמיד הופך לבעייתי? (רוחבי / רב-מערכתי / רגולציה / בנקים)', isDefault: true },
+  { topicNumber: 3, questionText: 'איפה צווארי הבקבוק הקבועים בתהליך? (אישורים, אבטחה, DB, אינטגרציות, ספק חיצוני)', isDefault: true },
 
-  // Topic 4: Story Creation
-  { topicNumber: 4, questionText: 'איך אתה יוצר Stories מ-Features?', isDefault: true },
-  { topicNumber: 4, questionText: 'מה הקריטריונים ל-Story טוב?', isDefault: true },
-  { topicNumber: 4, questionText: 'כמה Stories בדרך כלל יש ב-Feature?', isDefault: true },
+  // נושא 4 – מדדים (KPI) והשפעה מדידה
+  { topicNumber: 4, questionText: 'אילו מדדים נפגעים בפועל? (בחר 1–2): סבבי חזרה בין ארכיטקט / SA / פיתוח, אחוז Stories שמוחזרות בגלל חוסר בהירות, חריגות תכנון ספרינט בגלל תלויות שלא זוהו, תקלות (defects) שמקורן באפיון חסר', isDefault: true },
+  { topicNumber: 4, questionText: 'מה יעד השיפור הרצוי במדדים האלו? (למשל: להפחית חזרות ב-30%, לקצר Lead Time ב-20%)', isDefault: true },
 
-  // Topic 5: Consistency Across Teams
-  { topicNumber: 5, questionText: 'איך אתה מוודא עקביות בין מדורים שונים?', isDefault: true },
-  { topicNumber: 5, questionText: 'מה האתגרים בשמירה על עקביות?', isDefault: true },
-  { topicNumber: 5, questionText: 'אילו כלים או תהליכים עוזרים לשמירה על עקביות?', isDefault: true },
+  // נושא 5 – מה נחשב הצלחה (ללא קשר ל-AI)
+  { topicNumber: 5, questionText: 'אם לא היה AI בכלל – איך נראית הצלחה בעיניך? (מה משתנה ביום-יום?)', isDefault: true },
+  { topicNumber: 5, questionText: 'מה Definition of Ready מחייב ל-Epic / Feature / Story אצלכם?', isDefault: true },
+  { topicNumber: 5, questionText: 'מה "המינימום המספיק" לפירוק טוב? (אילו פרטים חייבים להיות בכל Story?)', isDefault: true },
+  { topicNumber: 5, questionText: 'מה רמת הגרנולריות הרצויה? מתי Epic הופך Feature ומתי Story?', isDefault: true },
+  { topicNumber: 5, questionText: 'מי מאשר שה-Backlog "מוכן לפיתוח"? ומה הקריטריונים לאישור?', isDefault: true },
 
-  // Topic 6: Estimation and Planning
-  { topicNumber: 6, questionText: 'איך אתה מעריך Epics ו-Features?', isDefault: true },
-  { topicNumber: 6, questionText: 'מה התהליך של תכנון עבודה מ-HLD?', isDefault: true },
-  { topicNumber: 6, questionText: 'איך אתה מתמודד עם אי-ודאות בתכנון?', isDefault: true },
+  // נושא 6 – דאטה, כלים ותשתית תומכת
+  { topicNumber: 6, questionText: 'באילו כלים אתם מנהלים היום את ה-Backlog? (Jira / ADO וכו\') ומה המבנה הקיים – Epic / Feature / Story', isDefault: true },
+  { topicNumber: 6, questionText: 'איפה נשמרים ה-HLDים, האפיונים והחלטות הארכיטקטורה? (Confluence / SharePoint / Docs / Email)', isDefault: true },
+  { topicNumber: 6, questionText: 'האם קיימות תבניות רשמיות ל-HLD / handoff / DD? או שכל מדור עובד אחרת?', isDefault: true },
+  { topicNumber: 6, questionText: 'איזה "אוצר מילים" חייב להיות אחיד בין כולם? (מדורים, מערכות, דומיינים, שמות שירותים, סוגי אינטגרציות)', isDefault: true },
+  { topicNumber: 6, questionText: 'אילו מגבלות מידע קיימות? (רגולציה / PII / חומר מסווג / מה אסור להכניס לכלי AI)', isDefault: true },
 
-  // Topic 7: Dependencies and Risks
-  { topicNumber: 7, questionText: 'איך אתה מטפל בתלויות בין Epics/Features?', isDefault: true },
-  { topicNumber: 7, questionText: 'מה הסיכונים העיקריים בפירוק HLD?', isDefault: true },
-  { topicNumber: 7, questionText: 'איך אתה מזהה ומנהל סיכונים?', isDefault: true },
+  // נושא 7 – מורכבות, סיכונים ושינוי ארגוני
+  { topicNumber: 7, questionText: 'האם יש צורך ב-Audit Trail מנומק להחלטות פירוק? (למה זה במדור X, למה זה Story ולא Task)', isDefault: true },
+  { topicNumber: 7, questionText: 'האם התהליך לא אחיד בין מדורים? מהם ההבדלים הקריטיים ביותר?', isDefault: true },
+  { topicNumber: 7, questionText: 'האם הדרישות משתנות בתדירות גבוהה תוך כדי פירוק (Scope Churn)? מי מאשר שינוי כזה?', isDefault: true },
+  { topicNumber: 7, questionText: 'האם יש תלות בגורמים חיצוניים שמקשה על פירוק מראש? (בנק / רגולטור / ספק)', isDefault: true },
+  { topicNumber: 7, questionText: 'האם קיימת התנגדות תרבותית או תחושת "בעלות אישית" על הפירוק? מי ה-Sponsor העסקי / הטכנולוגי?', isDefault: true },
 
-  // Topic 8: Tools and Processes
-  { topicNumber: 8, questionText: 'אילו כלים אתה משתמש לפירוק HLD?', isDefault: true },
-  { topicNumber: 8, questionText: 'מה התהליך שלך מ-HLD עד Stories?', isDefault: true },
-  { topicNumber: 8, questionText: 'איך אתה מתעד את התהליך?', isDefault: true },
+  // נושא 8 – Best Practices וצעדי המשך
+  { topicNumber: 8, questionText: 'אילו Best Practices פנימיים היית רוצה להפוך לסטנדרט ארגוני?', isDefault: true },
+  { topicNumber: 8, questionText: 'האם ניתן להתחיל בפיילוט ממוקד? באיזה דומיין / מדור ROI יהיה הכי גבוה?', isDefault: true },
+  { topicNumber: 8, questionText: 'האם נדרשת תבנית אחת אחידה ל-Epic / Feature / Story (כולל DoR / DoD / Acceptance Criteria)?', isDefault: true },
+  { topicNumber: 8, questionText: 'האם נדרש Workflow של Review / Approval לפירוק לפני handoff ל-DD? מי הגורם המאשר?', isDefault: true },
+  { topicNumber: 8, questionText: 'אילו תוצרים חייבים לצאת מהפירוק כדי שכל הגורמים יבטחו בו?', isDefault: true },
 ];
 
 async function seed() {
