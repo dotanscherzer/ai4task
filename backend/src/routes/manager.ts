@@ -716,27 +716,25 @@ router.post('/message', async (req: Request, res: Response) => {
         const topicAnswers = answers.filter(
           (a: any) => a.topicNumber === topicState.topicNumber && !a.skipped
         );
-          const topicQuestionsCount = questions.filter(
-            (q: any) => q.topicNumber === topicState.topicNumber && q.enabled
-          ).length;
-          
-          if (topicQuestionsCount > 0) {
-            const newConfidence = Math.min(0.9, (topicAnswers.length / topicQuestionsCount) * 1.2);
-            const topicStateDoc = await TopicState.findOne({
-              interviewId,
-              topicNumber: topicState.topicNumber,
-            });
-            if (topicStateDoc && newConfidence > topicStateDoc.confidence) {
-              topicStateDoc.confidence = newConfidence;
-              await topicStateDoc.save();
-            }
+        const topicQuestionsCount = questions.filter(
+          (q: any) => q.topicNumber === topicState.topicNumber && q.enabled
+        ).length;
+        
+        if (topicQuestionsCount > 0) {
+          const newConfidence = Math.min(0.9, (topicAnswers.length / topicQuestionsCount) * 1.2);
+          const topicStateDoc = await TopicState.findOne({
+            interviewId,
+            topicNumber: topicState.topicNumber,
+          });
+          if (topicStateDoc && newConfidence > topicStateDoc.confidence) {
+            topicStateDoc.confidence = newConfidence;
+            await topicStateDoc.save();
           }
         }
       }
     }
 
     // Calculate progress for response
-    const answers = await Answer.find({ interviewId }).lean();
     const answered = answers.filter((a) => !a.skipped).length;
     const skipped = answers.filter((a) => a.skipped).length;
     const totalQuestions = questions.filter(
