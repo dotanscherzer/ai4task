@@ -75,3 +75,24 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.toggle-mode {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.toggle-button {
+  background: transparent;
+  color: #667eea;
+  border: none;
+  padding: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  width: auto;
+}
+
+.toggle-button:hover:not(:disabled) {
+  background: transparent;
+  color: #5568d3;
+}
+

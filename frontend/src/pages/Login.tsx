@@ -9,6 +9,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -18,11 +19,19 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await authAPI.login(email, password);
+      let response;
+      if (isRegisterMode) {
+        response = await authAPI.register(email, password);
+      } else {
+        response = await authAPI.login(email, password);
+      }
       login(response.token, response.user);
       navigate('/admin');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'שגיאה בהתחברות');
+      setError(
+        err.response?.data?.error ||
+          (isRegisterMode ? 'שגיאה בהרשמה' : 'שגיאה בהתחברות')
+      );
     } finally {
       setIsLoading(false);
     }
@@ -31,7 +40,7 @@ const Login = () => {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>התחברות</h1>
+        <h1>{isRegisterMode ? 'הרשמה' : 'התחברות'}</h1>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>אימייל</label>
@@ -55,8 +64,29 @@ const Login = () => {
           </div>
           {error && <div className="error-message">{error}</div>}
           <button type="submit" disabled={isLoading}>
-            {isLoading ? 'מתחבר...' : 'התחבר'}
+            {isLoading
+              ? isRegisterMode
+                ? 'נרשם...'
+                : 'מתחבר...'
+              : isRegisterMode
+              ? 'הרשם'
+              : 'התחבר'}
           </button>
+          <div className="toggle-mode">
+            <button
+              type="button"
+              className="toggle-button"
+              onClick={() => {
+                setIsRegisterMode(!isRegisterMode);
+                setError('');
+              }}
+              disabled={isLoading}
+            >
+              {isRegisterMode
+                ? 'יש לך כבר חשבון? התחבר'
+                : 'אין לך חשבון? הרשם'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
