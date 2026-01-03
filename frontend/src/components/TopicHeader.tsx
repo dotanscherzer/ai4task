@@ -7,14 +7,14 @@ interface TopicHeaderProps {
 }
 
 const TOPIC_LABELS: Record<number, string> = {
-  1: 'הבנת מבנה HLD',
-  2: 'הגדרת Epic',
-  3: 'פירוק ל-Features',
-  4: 'יצירת Stories',
-  5: 'עקביות בין מדורים',
-  6: 'הערכה ותכנון',
-  7: 'תלויות וסיכונים',
-  8: 'כלים ותהליכים',
+  1: 'הבנת מבנה HLD - רכיבים עיקריים ומבנה טיפוסי',
+  2: 'הגדרת Epic - קריטריונים ומספר טיפוסי',
+  3: 'פירוק Epic ל-Features - גודל ומספר',
+  4: 'יצירת Stories מ-Features - קריטריונים ומספר',
+  5: 'עקביות בין מדורים - אתגרים וכלים',
+  6: 'הערכה ותכנון - תהליך וטיפול באי-ודאות',
+  7: 'תלויות וסיכונים - זיהוי וניהול',
+  8: 'כלים ותהליכים - מפירוק HLD עד Stories',
 };
 
 const TopicHeader = ({ topicNumber, confidence, coveredPoints }: TopicHeaderProps) => {

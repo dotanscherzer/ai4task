@@ -43,21 +43,23 @@ const ManagerChat = () => {
     try {
       setIsLoading(true);
       const data = await managerAPI.getState(shareToken!);
+      
+      // Prepare initial messages - if no messages exist and there's a first question, add it
+      let initialMessages = data.recent_messages || [];
+      if (initialMessages.length === 0 && data.current.next_question_text) {
+        initialMessages = [{ role: 'bot', content: data.current.next_question_text }];
+      }
+      
       setState({
         interview: data.interview,
         currentTopic: data.current.topic_number,
         nextQuestion: data.current.next_question_text,
-        messages: data.recent_messages || [],
+        messages: initialMessages,
         topicConfidence: data.topic_state?.[0]?.confidence || 0,
         coveredPoints: data.topic_state?.[0]?.covered_points || [],
         quickReplies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
         status: data.interview.status === 'completed' ? 'finished' : 'asking',
       });
-
-      // If no messages, send initial question
-      if (data.recent_messages.length === 0 && data.current.next_question_text) {
-        addBotMessage(data.current.next_question_text);
-      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה בטעינת הריאיון');
     } finally {

@@ -12,14 +12,46 @@ interface CreateInterviewModalProps {
 }
 
 const TOPICS = [
-  { number: 1, label: 'הבנת מבנה HLD' },
-  { number: 2, label: 'הגדרת Epic' },
-  { number: 3, label: 'פירוק ל-Features' },
-  { number: 4, label: 'יצירת Stories' },
-  { number: 5, label: 'עקביות בין מדורים' },
-  { number: 6, label: 'הערכה ותכנון' },
-  { number: 7, label: 'תלויות וסיכונים' },
-  { number: 8, label: 'כלים ותהליכים' },
+  { 
+    number: 1, 
+    label: 'הבנת מבנה HLD - רכיבים עיקריים ומבנה טיפוסי',
+    description: 'שאלות על הגדרת HLD בפרויקט, המבנה הטיפוסי והרכיבים העיקריים'
+  },
+  { 
+    number: 2, 
+    label: 'הגדרת Epic - קריטריונים ומספר טיפוסי',
+    description: 'שאלות על איך מגדירים Epic, הקריטריונים להגדרת Epic חדש ומספר Epics טיפוסי בפרויקט'
+  },
+  { 
+    number: 3, 
+    label: 'פירוק Epic ל-Features - גודל ומספר',
+    description: 'שאלות על תהליך הפירוק ל-Features, הגודל הטיפוסי של Feature ומספר Features ל-Epic'
+  },
+  { 
+    number: 4, 
+    label: 'יצירת Stories מ-Features - קריטריונים ומספר',
+    description: 'שאלות על יצירת Stories, הקריטריונים ל-Story טוב ומספר Stories טיפוסי ב-Feature'
+  },
+  { 
+    number: 5, 
+    label: 'עקביות בין מדורים - אתגרים וכלים',
+    description: 'שאלות על שמירה על עקביות בין מדורים שונים, האתגרים והכלים/תהליכים התומכים'
+  },
+  { 
+    number: 6, 
+    label: 'הערכה ותכנון - תהליך וטיפול באי-ודאות',
+    description: 'שאלות על הערכת Epics ו-Features, תהליך התכנון מ-HLD וטיפול באי-ודאות'
+  },
+  { 
+    number: 7, 
+    label: 'תלויות וסיכונים - זיהוי וניהול',
+    description: 'שאלות על טיפול בתלויות בין Epics/Features, הסיכונים העיקריים וניהולם'
+  },
+  { 
+    number: 8, 
+    label: 'כלים ותהליכים - מפירוק HLD עד Stories',
+    description: 'שאלות על הכלים המשמשים לפירוק HLD, התהליך מ-HLD עד Stories ותיעוד'
+  },
 ];
 
 const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) => {
@@ -98,9 +130,12 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
                     onChange={() => handleTopicToggle(topic.number)}
                     disabled={isSubmitting}
                   />
-                  <span>
-                    נושא {topic.number}: {topic.label}
-                  </span>
+                  <div className="topic-content">
+                    <span className="topic-label">
+                      נושא {topic.number}: {topic.label}
+                    </span>
+                    <span className="topic-description">{topic.description}</span>
+                  </div>
                 </label>
               ))}
             </div>
