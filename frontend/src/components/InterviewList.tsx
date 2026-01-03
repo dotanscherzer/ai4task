@@ -48,6 +48,11 @@ const InterviewList = ({
           {interview.managerRole && (
             <div className="interview-role">{interview.managerRole}</div>
           )}
+          {interview.challengeId && (
+            <div className="interview-challenge">
+              אתגר: {typeof interview.challengeId === 'object' ? interview.challengeId.name : 'טוען...'}
+            </div>
+          )}
           <div className="interview-meta">
             <span>{new Date(interview.createdAt).toLocaleDateString('he-IL')}</span>
             <div className="interview-actions">

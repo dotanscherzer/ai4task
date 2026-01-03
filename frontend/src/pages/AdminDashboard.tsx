@@ -4,6 +4,7 @@ import { interviewsAPI, emailAPI } from '../services/api';
 import InterviewList from '../components/InterviewList';
 import CreateInterviewModal from '../components/CreateInterviewModal';
 import InterviewDetails from '../components/InterviewDetails';
+import Toast from '../components/Toast';
 import { Interview } from '../types';
 import './AdminDashboard.css';
 
@@ -15,8 +16,7 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [emailSending, setEmailSending] = useState<string | null>(null);
-  const [emailError, setEmailError] = useState<string>('');
-  const [emailSuccess, setEmailSuccess] = useState<string>('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     loadInterviews();
@@ -47,29 +47,22 @@ const AdminDashboard = () => {
   const handleSendEmail = async (interviewId: string) => {
     try {
       setEmailSending(interviewId);
-      setEmailError('');
-      setEmailSuccess('');
+      setToast(null);
       
       const response = await emailAPI.send(interviewId);
       
-      setEmailSuccess(response.message || 'המייל נשלח בהצלחה!');
-      setEmailError('');
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => {
-        setEmailSuccess('');
-      }, 5000);
+      setToast({
+        message: response.message || 'המייל נשלח בהצלחה!',
+        type: 'success'
+      });
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || 'שגיאה בשליחת מייל';
       const errorDetails = err.response?.data?.details;
       
-      setEmailError(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
-      setEmailSuccess('');
-      
-      // Clear error message after 10 seconds
-      setTimeout(() => {
-        setEmailError('');
-      }, 10000);
+      setToast({
+        message: errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage,
+        type: 'error'
+      });
     } finally {
       setEmailSending(null);
     }
@@ -112,6 +105,9 @@ const AdminDashboard = () => {
       <header className="dashboard-header">
         <h1>לוח בקרה - ראיונות AI</h1>
         <div className="header-actions">
+          <a href="/admin/challenges" className="challenges-link">
+            ניהול אתגרים
+          </a>
           <span className="user-email">{user?.email}</span>
           <button onClick={logout} className="logout-btn">
             התנתק
@@ -121,15 +117,13 @@ const AdminDashboard = () => {
 
       <div className="dashboard-content">
         {error && <div className="error-banner">{error}</div>}
-        {emailError && (
-          <div className="error-banner" style={{ backgroundColor: '#fee', color: '#c33', padding: '12px', marginBottom: '10px', borderRadius: '4px' }}>
-            <strong>שגיאה בשליחת מייל:</strong> {emailError}
-          </div>
-        )}
-        {emailSuccess && (
-          <div className="success-banner" style={{ backgroundColor: '#efe', color: '#3c3', padding: '12px', marginBottom: '10px', borderRadius: '4px' }}>
-            <strong>הצלחה:</strong> {emailSuccess}
-          </div>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+            duration={toast.type === 'success' ? 5000 : 10000}
+          />
         )}
 
         <div className="dashboard-main">
@@ -164,8 +158,7 @@ const AdminDashboard = () => {
                 onSendEmail={handleSendEmail}
                 onClose={() => {
                   setSelectedInterview(null);
-                  setEmailError('');
-                  setEmailSuccess('');
+                  setToast(null);
                 }}
                 isSendingEmail={emailSending === selectedInterview._id}
               />

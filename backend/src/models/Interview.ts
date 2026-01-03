@@ -8,6 +8,7 @@ export interface IInterview extends Document {
   status: 'not_started' | 'in_progress' | 'completed';
   shareToken: string;
   selectedTopics: number[];
+  challengeId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ const InterviewSchema = new Schema<IInterview>(
     },
     shareToken: { type: String, required: true, unique: true, index: true },
     selectedTopics: { type: [Number], required: true },
+    challengeId: { type: Schema.Types.ObjectId, ref: 'Challenge', required: false, index: true },
   },
   {
     timestamps: true,

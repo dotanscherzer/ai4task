@@ -6,6 +6,7 @@ import { InterviewSession } from '../models/InterviewSession';
 import { TopicState } from '../models/TopicState';
 import { Answer } from '../models/Answer';
 import { ChatMessage } from '../models/ChatMessage';
+import { challengeService } from './challengeService';
 import mongoose from 'mongoose';
 
 export class InterviewService {
@@ -16,11 +17,24 @@ export class InterviewService {
     managerRole?: string;
     selectedTopics: number[];
     questionIds?: string[];
+    challengeId?: string;
   }): Promise<any> {
+    // Validate that topics belong to challenge if challengeId is provided
+    if (data.challengeId) {
+      const isValid = await challengeService.validateTopicsBelongToChallenge(
+        data.challengeId,
+        data.selectedTopics
+      );
+      if (!isValid) {
+        throw new Error('Selected topics must belong to the specified challenge');
+      }
+    }
+
     const shareToken = uuidv4();
 
     const interview = new Interview({
       ...data,
+      challengeId: data.challengeId ? new mongoose.Types.ObjectId(data.challengeId) : undefined,
       shareToken,
       status: 'not_started',
     });
@@ -104,7 +118,7 @@ export class InterviewService {
       query.adminUserId = adminUserId;
     }
 
-    const interview = await Interview.findOne(query);
+    const interview = await Interview.findOne(query).populate('challengeId', 'name description');
     if (!interview) {
       return null;
     }
@@ -118,7 +132,10 @@ export class InterviewService {
       query.adminUserId = adminUserId;
     }
 
-    const interviews = await Interview.find(query).sort({ createdAt: -1 }).lean();
+    const interviews = await Interview.find(query)
+      .populate('challengeId', 'name description')
+      .sort({ createdAt: -1 })
+      .lean();
     return interviews;
   }
 

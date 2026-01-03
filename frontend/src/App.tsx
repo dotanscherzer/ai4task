@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
+import ChallengeManagement from './pages/ChallengeManagement';
 import ManagerChat from './pages/ManagerChat';
 import Login from './pages/Login';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,6 +21,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/challenges"
+            element={
+              <ProtectedRoute>
+                <ChallengeManagement />
               </ProtectedRoute>
             }
           />

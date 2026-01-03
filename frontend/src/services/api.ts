@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Interview } from '../types';
+import { Interview, Challenge } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -35,6 +35,42 @@ export const authAPI = {
   },
 };
 
+// Challenges API
+export const challengesAPI = {
+  list: async (): Promise<Challenge[]> => {
+    const response = await api.get<Challenge[]>('/challenges');
+    return response.data;
+  },
+  get: async (id: string): Promise<Challenge> => {
+    const response = await api.get<Challenge>(`/challenges/${id}`);
+    return response.data;
+  },
+  create: async (data: {
+    name: string;
+    description: string;
+    topicNumbers: number[];
+  }): Promise<Challenge> => {
+    const response = await api.post<Challenge>('/challenges', data);
+    return response.data;
+  },
+  update: async (id: string, data: {
+    name?: string;
+    description?: string;
+    topicNumbers?: number[];
+  }): Promise<Challenge> => {
+    const response = await api.put<Challenge>(`/challenges/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/challenges/${id}`);
+    return response.data;
+  },
+  getTopics: async (id: string) => {
+    const response = await api.get(`/challenges/${id}/topics`);
+    return response.data;
+  },
+};
+
 // Interviews API
 export const interviewsAPI = {
   list: async (): Promise<Interview[]> => {
@@ -50,6 +86,7 @@ export const interviewsAPI = {
     managerRole?: string;
     adminEmail?: string;
     selectedTopics: number[];
+    challengeId?: string;
   }) => {
     const response = await api.post('/interviews', data);
     return response.data;

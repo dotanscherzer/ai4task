@@ -80,6 +80,16 @@ const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = fa
             <strong>תפקיד:</strong> {interview.managerRole}
           </div>
         )}
+        {interview.challengeId && (
+          <div className="info-item">
+            <strong>אתגר:</strong> {typeof interview.challengeId === 'object' ? interview.challengeId.name : 'טוען...'}
+            {typeof interview.challengeId === 'object' && interview.challengeId.description && (
+              <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+                {interview.challengeId.description}
+              </div>
+            )}
+          </div>
+        )}
         <div className="info-item">
           <strong>לינק שיתוף:</strong>
           <input type="text" value={shareLink} readOnly className="share-link-input" />

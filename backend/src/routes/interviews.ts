@@ -1,6 +1,7 @@
 import express, { Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { interviewService } from '../services/interviewService';
+import { challengeService } from '../services/challengeService';
 import { Question } from '../models/Question';
 import { Answer } from '../models/Answer';
 import { ChatMessage } from '../models/ChatMessage';
@@ -23,10 +24,27 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { managerName, managerRole, adminEmail, selectedTopics, questionIds } = req.body;
+    const { managerName, managerRole, adminEmail, selectedTopics, questionIds, challengeId } = req.body;
 
     if (!managerName || !selectedTopics || selectedTopics.length === 0) {
       return res.status(400).json({ error: 'managerName and selectedTopics are required' });
+    }
+
+    // Validate challengeId if provided
+    if (challengeId) {
+      const challenge = await challengeService.getChallengeById(challengeId);
+      if (!challenge) {
+        return res.status(404).json({ error: 'Challenge not found' });
+      }
+
+      // Validate that all selected topics belong to the challenge
+      const isValid = await challengeService.validateTopicsBelongToChallenge(
+        challengeId,
+        selectedTopics
+      );
+      if (!isValid) {
+        return res.status(400).json({ error: 'Selected topics must belong to the specified challenge' });
+      }
     }
 
     const interview = await interviewService.createInterview({
@@ -36,6 +54,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       managerRole,
       selectedTopics,
       questionIds,
+      challengeId,
     });
 
     res.status(201).json(interview);

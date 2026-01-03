@@ -4,6 +4,7 @@ import { ChatMessage } from '../models/ChatMessage';
 import { Answer } from '../models/Answer';
 import { TopicState } from '../models/TopicState';
 import { InterviewSession } from '../models/InterviewSession';
+import { Challenge } from '../models/Challenge';
 import mongoose from 'mongoose';
 
 export class EmailService {
@@ -64,7 +65,7 @@ export class EmailService {
       console.log(`✉️ Sending email to: ${interview.adminEmail}`);
 
       // Fetch related data
-      const [messages, answers, topicStates, session] = await Promise.all([
+      const [messages, answers, topicStates, session, challenge] = await Promise.all([
         ChatMessage.find({ interviewId: new mongoose.Types.ObjectId(interviewId) })
           .sort({ createdAt: 1 })
           .lean(),
@@ -73,12 +74,13 @@ export class EmailService {
           .lean(),
         TopicState.find({ interviewId: new mongoose.Types.ObjectId(interviewId) }).lean(),
         InterviewSession.findOne({ interviewId: new mongoose.Types.ObjectId(interviewId) }).lean(),
+        interview.challengeId ? Challenge.findById(interview.challengeId).lean() : Promise.resolve(null),
       ]);
 
-      console.log(`📊 Data loaded: ${messages.length} messages, ${answers.length} answers, ${topicStates.length} topics`);
+      console.log(`📊 Data loaded: ${messages.length} messages, ${answers.length} answers, ${topicStates.length} topics${challenge ? `, challenge: ${challenge.name}` : ''}`);
 
       // Generate HTML
-      const html = this.generateEmailHTML(interview, messages, answers, topicStates, session);
+      const html = this.generateEmailHTML(interview, messages, answers, topicStates, session, challenge);
       console.log(`📝 Email HTML generated (${html.length} characters)`);
 
       // Send email via Resend
@@ -134,13 +136,26 @@ export class EmailService {
     messages: any[],
     answers: any[],
     topicStates: any[],
-    session: any
+    session: any,
+    challenge: any
   ): string {
     const stats = {
       answered: session?.answeredCount || 0,
       skipped: session?.skippedCount || 0,
       total: (session?.answeredCount || 0) + (session?.skippedCount || 0),
     };
+
+    // Box titles for challenge map
+    const boxTitles = [
+      'מאפייני האתגר ואיך הוא משפיע על העסק במדדים מוגדרים',
+      'השפעת האתגר במדדים/KPI',
+      'קהל היעד, היקף וטווח ההשפעה',
+      'קשר והשפעה על מיקודים עסקיים',
+      'מה ייחשב הצלחה? (בלי קשר ל AI)',
+      'מידע חשוב על דאטה/מערכות מידע',
+      'סימנים - It\'s Complicated מעידים',
+      'מידע רלוונטי נוסף / הערות'
+    ];
 
     let html = `
 <!DOCTYPE html>
@@ -149,16 +164,32 @@ export class EmailService {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-    .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-    .header { background: #f4f4f4; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-    .topic-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-    .qa-card { background: #f9f9f9; padding: 15px; margin: 10px 0; border-radius: 5px; }
-    .question { font-weight: bold; color: #2c3e50; }
-    .answer { margin-top: 10px; color: #555; }
-    .skipped { color: #999; font-style: italic; }
-    .stats { display: flex; gap: 20px; margin: 20px 0; }
-    .stat-item { flex: 1; text-align: center; padding: 15px; background: #e8f4f8; border-radius: 5px; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #fff; }
+    .header { background: #f4f4f4; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+    .challenge-section { margin: 40px 0; padding: 0; }
+    .challenge-header { background: #ff6b35; color: white; padding: 20px; border-radius: 8px 8px 0 0; margin: 0; }
+    .challenge-header h2 { margin: 0; font-size: 24px; }
+    .challenge-fields { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-top: none; }
+    .challenge-field { margin: 10px 0; }
+    .challenge-field-label { font-weight: bold; color: #555; margin-left: 10px; }
+    .challenge-field-value { color: #333; }
+    .challenge-grid { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .challenge-row { }
+    .challenge-box { width: 25%; padding: 15px; border: 2px solid #0066cc; vertical-align: top; background: white; }
+    .challenge-box-title { font-weight: bold; color: #0066cc; margin-bottom: 10px; font-size: 14px; min-height: 40px; }
+    .challenge-box-content { color: #333; font-size: 13px; }
+    .topic-header { font-weight: bold; color: #2c3e50; margin-bottom: 8px; }
+    .confidence-badge { display: inline-block; background: #e8f4f8; padding: 3px 8px; border-radius: 3px; font-size: 12px; margin-right: 5px; }
+    .covered-points { margin: 8px 0; }
+    .covered-points li { margin: 4px 0; font-size: 12px; }
+    .qa-item { margin: 8px 0; padding: 8px; background: #f9f9f9; border-radius: 4px; }
+    .qa-question { font-weight: bold; color: #2c3e50; font-size: 12px; margin-bottom: 4px; }
+    .qa-answer { color: #555; font-size: 12px; }
+    .qa-skipped { color: #999; font-style: italic; font-size: 12px; }
+    .empty-box { color: #999; font-style: italic; text-align: center; padding: 20px; }
+    .stats { display: table; width: 100%; margin: 20px 0; }
+    .stat-item { display: table-cell; text-align: center; padding: 15px; background: #e8f4f8; border-radius: 5px; }
   </style>
 </head>
 <body>
@@ -195,10 +226,20 @@ export class EmailService {
       answersByTopic.get(answer.topicNumber)!.push(answer);
     });
 
-    // Generate topic sections
-    topicStates.forEach((topicState) => {
-      const topicAnswers = answersByTopic.get(topicState.topicNumber) || [];
-      html += `
+    // Create a map of topic states by topic number
+    const topicStatesByNumber = new Map<number, any>();
+    topicStates.forEach((ts) => {
+      topicStatesByNumber.set(ts.topicNumber, ts);
+    });
+
+    // Generate challenge map if challenge exists
+    if (challenge) {
+      html += this.generateChallengeMap(challenge, topicStatesByNumber, answersByTopic, boxTitles);
+    } else {
+      // Fallback: Generate topic sections without challenge map
+      topicStates.forEach((topicState) => {
+        const topicAnswers = answersByTopic.get(topicState.topicNumber) || [];
+        html += `
     <div class="topic-section">
       <h2>נושא ${topicState.topicNumber}</h2>
       <p><strong>ביטחון:</strong> ${(topicState.confidence * 100).toFixed(0)}%</p>
@@ -223,7 +264,8 @@ export class EmailService {
       `).join('') : '<p>אין תשובות בנושא זה</p>'}
     </div>
 `;
-    });
+      });
+    }
 
     // Generate conclusions based on interview data
     const lowConfidenceTopics = topicStates.filter((ts: any) => ts.confidence < 0.5);
@@ -264,6 +306,106 @@ export class EmailService {
   </div>
 </body>
 </html>
+`;
+
+    return html;
+  }
+
+  private generateChallengeMap(
+    challenge: any,
+    topicStatesByNumber: Map<number, any>,
+    answersByTopic: Map<number, any[]>,
+    boxTitles: string[]
+  ): string {
+    let html = `
+    <div class="challenge-section">
+      <div class="challenge-header">
+        <h2>מפת אתגר: ${challenge.name}</h2>
+      </div>
+      <div class="challenge-fields">
+        <div class="challenge-field">
+          <span class="challenge-field-label">תיאור קצר לאתגר:</span>
+          <span class="challenge-field-value">${challenge.description || 'לא צוין'}</span>
+        </div>
+        <div class="challenge-field">
+          <span class="challenge-field-label">חטיבה/יחידה קשורה:</span>
+          <span class="challenge-field-value">-</span>
+        </div>
+        <div class="challenge-field">
+          <span class="challenge-field-label">תהליך / תוצר / משימה:</span>
+          <span class="challenge-field-value">-</span>
+        </div>
+      </div>
+      <table class="challenge-grid" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+`;
+
+    // Create 8 boxes in 2 rows x 4 columns
+    for (let row = 0; row < 2; row++) {
+      html += '        <tr class="challenge-row">\n';
+      for (let col = 0; col < 4; col++) {
+        const boxIndex = row * 4 + col;
+        const topicNumber = boxIndex + 1; // Topics are 1-indexed
+        const topicState = topicStatesByNumber.get(topicNumber);
+        const topicAnswers = answersByTopic.get(topicNumber) || [];
+        const boxTitle = boxTitles[boxIndex];
+
+        html += `          <td class="challenge-box" style="width: 25%; padding: 15px; border: 2px solid #0066cc; vertical-align: top; background: white;">
+            <div class="challenge-box-title">${boxTitle}</div>
+            <div class="challenge-box-content">`;
+
+        // Check if this topic belongs to the challenge
+        if (challenge.topicNumbers.includes(topicNumber) && topicState) {
+          // Topic exists and has data
+          html += `
+              <div class="topic-header">
+                נושא ${topicNumber}
+                <span class="confidence-badge">ביטחון: ${(topicState.confidence * 100).toFixed(0)}%</span>
+              </div>`;
+
+          if (topicState.coveredPoints && topicState.coveredPoints.length > 0) {
+            html += `
+              <div class="covered-points">
+                <strong>מה למדנו:</strong>
+                <ul>
+                  ${topicState.coveredPoints.map((point: string) => `<li>${point}</li>`).join('')}
+                </ul>
+              </div>`;
+          }
+
+          if (topicAnswers.length > 0) {
+            html += `
+              <div>
+                <strong>שאלות ותשובות:</strong>`;
+            topicAnswers.forEach((answer: any) => {
+              html += `
+                <div class="qa-item">
+                  <div class="qa-question">${answer.questionText}</div>`;
+              if (answer.skipped) {
+                html += `<div class="qa-skipped">דולג</div>`;
+              } else {
+                html += `<div class="qa-answer">${answer.answerText || 'ללא תשובה'}</div>`;
+              }
+              html += `</div>`;
+            });
+            html += `</div>`;
+          } else {
+            html += `<div class="qa-item">אין תשובות בנושא זה</div>`;
+          }
+        } else {
+          // Empty box
+          html += `<div class="empty-box">אין נושאים נוספים</div>`;
+        }
+
+        html += `
+            </div>
+          </td>
+`;
+      }
+      html += '        </tr>\n';
+    }
+
+    html += `      </table>
+    </div>
 `;
 
     return html;
