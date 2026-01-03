@@ -203,35 +203,38 @@ const ManagerChat = () => {
           />
 
           <div className="chat-input-container">
-            <input
-              type="text"
+            <textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !isLoading && inputMessage.trim()) {
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.ctrlKey && !isLoading && inputMessage.trim()) {
+                  e.preventDefault();
                   handleSendMessage(inputMessage.trim());
                 }
               }}
-              placeholder="הקלד תשובה..."
+              placeholder="הקלד תשובה מפורטת..."
               disabled={isLoading}
               className="chat-input"
+              rows={4}
             />
-            <button
-              onClick={() => {
-                if (inputMessage.trim()) {
-                  handleSendMessage(inputMessage.trim());
-                }
-              }}
-              disabled={isLoading || !inputMessage.trim()}
-              className="send-btn"
-            >
-              שלח
-            </button>
-            {state.status === 'asking' && (
-              <button onClick={handleComplete} className="complete-btn">
-                סיים ריאיון
+            <div className="chat-buttons">
+              <button
+                onClick={() => {
+                  if (inputMessage.trim()) {
+                    handleSendMessage(inputMessage.trim());
+                  }
+                }}
+                disabled={isLoading || !inputMessage.trim()}
+                className="send-btn"
+              >
+                שלח
               </button>
-            )}
+              {state.status === 'asking' && (
+                <button onClick={handleComplete} className="complete-btn">
+                  סיים ריאיון
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}

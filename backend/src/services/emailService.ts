@@ -7,25 +7,57 @@ import { InterviewSession } from '../models/InterviewSession';
 import mongoose from 'mongoose';
 
 export class EmailService {
-  private resend: Resend;
+  private resend: Resend | null;
   private fromEmail: string;
+  private apiKey: string | undefined;
 
   constructor() {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.warn('⚠️ RESEND_API_KEY not set. Email features will not work.');
+    this.apiKey = process.env.RESEND_API_KEY;
+    if (!this.apiKey) {
+      console.error('❌ RESEND_API_KEY not set. Email features will not work.');
+      this.resend = null;
+    } else {
+      this.resend = new Resend(this.apiKey);
+      console.log('✅ EmailService initialized with Resend API key');
     }
-    this.resend = new Resend(apiKey);
     this.fromEmail = process.env.FROM_EMAIL || 'Challenge Bot <noreply@example.com>';
+    console.log(`📧 From email: ${this.fromEmail}`);
+  }
+
+  private validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 
   async sendInterviewSummary(interviewId: string): Promise<boolean> {
     try {
-      const interview = await Interview.findById(interviewId);
-      if (!interview) {
-        throw new Error('Interview not found');
+      // Validate API key
+      if (!this.apiKey || !this.resend) {
+        throw new Error('RESEND_API_KEY is not configured. Please set the environment variable.');
       }
 
+      console.log(`📤 Starting email send for interview: ${interviewId}`);
+
+      // Fetch interview
+      const interview = await Interview.findById(interviewId);
+      if (!interview) {
+        throw new Error(`Interview not found with ID: ${interviewId}`);
+      }
+
+      console.log(`📋 Interview found: ${interview.managerName} (${interview.status})`);
+
+      // Validate admin email
+      if (!interview.adminEmail) {
+        throw new Error('Interview does not have an admin email address');
+      }
+
+      if (!this.validateEmail(interview.adminEmail)) {
+        throw new Error(`Invalid email address: ${interview.adminEmail}`);
+      }
+
+      console.log(`✉️ Sending email to: ${interview.adminEmail}`);
+
+      // Fetch related data
       const [messages, answers, topicStates, session] = await Promise.all([
         ChatMessage.find({ interviewId: new mongoose.Types.ObjectId(interviewId) })
           .sort({ createdAt: 1 })
@@ -37,8 +69,13 @@ export class EmailService {
         InterviewSession.findOne({ interviewId: new mongoose.Types.ObjectId(interviewId) }).lean(),
       ]);
 
-      const html = this.generateEmailHTML(interview, messages, answers, topicStates, session);
+      console.log(`📊 Data loaded: ${messages.length} messages, ${answers.length} answers, ${topicStates.length} topics`);
 
+      // Generate HTML
+      const html = this.generateEmailHTML(interview, messages, answers, topicStates, session);
+      console.log(`📝 Email HTML generated (${html.length} characters)`);
+
+      // Send email via Resend
       const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: interview.adminEmail,
@@ -46,9 +83,24 @@ export class EmailService {
         html,
       });
 
-      return !!result.data;
-    } catch (error) {
-      console.error('Email Service Error:', error);
+      if (result.error) {
+        console.error('❌ Resend API Error:', result.error);
+        throw new Error(`Resend API error: ${JSON.stringify(result.error)}`);
+      }
+
+      if (!result.data) {
+        console.error('❌ No data returned from Resend API');
+        throw new Error('Failed to send email: No response data from Resend API');
+      }
+
+      console.log(`✅ Email sent successfully! ID: ${result.data.id}`);
+      return true;
+    } catch (error: any) {
+      console.error('❌ Email Service Error:', {
+        message: error.message,
+        stack: error.stack,
+        interviewId,
+      });
       throw error;
     }
   }

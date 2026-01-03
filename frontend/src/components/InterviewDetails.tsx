@@ -7,9 +7,10 @@ interface InterviewDetailsProps {
   interview: Interview;
   onSendEmail: (interviewId: string) => void;
   onClose: () => void;
+  isSendingEmail?: boolean;
 }
 
-const InterviewDetails = ({ interview, onSendEmail, onClose }: InterviewDetailsProps) => {
+const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = false }: InterviewDetailsProps) => {
   const [details, setDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'qa'>('overview');
@@ -178,8 +179,16 @@ const InterviewDetails = ({ interview, onSendEmail, onClose }: InterviewDetailsP
 
       {interview.status === 'completed' && (
         <div className="details-actions">
-          <button onClick={() => onSendEmail(interview._id)} className="btn-primary">
-            שלח מייל סיכום
+          <button 
+            onClick={() => onSendEmail(interview._id)} 
+            className="btn-primary"
+            disabled={isSendingEmail}
+            style={{ 
+              opacity: isSendingEmail ? 0.6 : 1,
+              cursor: isSendingEmail ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {isSendingEmail ? 'שולח מייל...' : 'שלח מייל סיכום'}
           </button>
         </div>
       )}

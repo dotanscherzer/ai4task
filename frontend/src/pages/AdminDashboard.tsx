@@ -14,6 +14,9 @@ const AdminDashboard = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [emailSending, setEmailSending] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string>('');
+  const [emailSuccess, setEmailSuccess] = useState<string>('');
 
   useEffect(() => {
     loadInterviews();
@@ -43,10 +46,32 @@ const AdminDashboard = () => {
 
   const handleSendEmail = async (interviewId: string) => {
     try {
-      await emailAPI.send(interviewId);
-      alert('המייל נשלח בהצלחה!');
+      setEmailSending(interviewId);
+      setEmailError('');
+      setEmailSuccess('');
+      
+      const response = await emailAPI.send(interviewId);
+      
+      setEmailSuccess(response.message || 'המייל נשלח בהצלחה!');
+      setEmailError('');
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setEmailSuccess('');
+      }, 5000);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'שגיאה בשליחת מייל');
+      const errorMessage = err.response?.data?.error || 'שגיאה בשליחת מייל';
+      const errorDetails = err.response?.data?.details;
+      
+      setEmailError(errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage);
+      setEmailSuccess('');
+      
+      // Clear error message after 10 seconds
+      setTimeout(() => {
+        setEmailError('');
+      }, 10000);
+    } finally {
+      setEmailSending(null);
     }
   };
 
@@ -96,6 +121,16 @@ const AdminDashboard = () => {
 
       <div className="dashboard-content">
         {error && <div className="error-banner">{error}</div>}
+        {emailError && (
+          <div className="error-banner" style={{ backgroundColor: '#fee', color: '#c33', padding: '12px', marginBottom: '10px', borderRadius: '4px' }}>
+            <strong>שגיאה בשליחת מייל:</strong> {emailError}
+          </div>
+        )}
+        {emailSuccess && (
+          <div className="success-banner" style={{ backgroundColor: '#efe', color: '#3c3', padding: '12px', marginBottom: '10px', borderRadius: '4px' }}>
+            <strong>הצלחה:</strong> {emailSuccess}
+          </div>
+        )}
 
         <div className="dashboard-main">
           <div className="interviews-section">
@@ -127,7 +162,12 @@ const AdminDashboard = () => {
               <InterviewDetails
                 interview={selectedInterview}
                 onSendEmail={handleSendEmail}
-                onClose={() => setSelectedInterview(null)}
+                onClose={() => {
+                  setSelectedInterview(null);
+                  setEmailError('');
+                  setEmailSuccess('');
+                }}
+                isSendingEmail={emailSending === selectedInterview._id}
               />
             </div>
           )}
