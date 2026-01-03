@@ -67,15 +67,6 @@ const ManagerChat = () => {
     }
   };
 
-  const addBotMessage = (content: string) => {
-    if (!state) return;
-    setState({
-      ...state,
-      messages: [...state.messages, { role: 'bot', content }],
-      status: 'asking',
-    });
-  };
-
   const handleSendMessage = async (message: string, action: string = 'answer') => {
     if (!shareToken || !state) return;
 
