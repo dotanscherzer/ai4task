@@ -4,6 +4,8 @@ import { Question } from '../models/Question';
 import { InterviewQuestion } from '../models/InterviewQuestion';
 import { InterviewSession } from '../models/InterviewSession';
 import { TopicState } from '../models/TopicState';
+import { Answer } from '../models/Answer';
+import { ChatMessage } from '../models/ChatMessage';
 import mongoose from 'mongoose';
 
 export class InterviewService {
@@ -139,6 +141,34 @@ export class InterviewService {
         await session.save();
       }
     }
+  }
+
+  async deleteInterview(interviewId: string, adminUserId?: string): Promise<boolean> {
+    const query: any = { _id: interviewId };
+    if (adminUserId) {
+      query.adminUserId = adminUserId;
+    }
+
+    const interview = await Interview.findOne(query);
+    if (!interview) {
+      return false;
+    }
+
+    const interviewObjectId = new mongoose.Types.ObjectId(interviewId);
+
+    // Delete all related data
+    await Promise.all([
+      InterviewQuestion.deleteMany({ interviewId: interviewObjectId }),
+      InterviewSession.deleteMany({ interviewId: interviewObjectId }),
+      TopicState.deleteMany({ interviewId: interviewObjectId }),
+      Answer.deleteMany({ interviewId: interviewObjectId }),
+      ChatMessage.deleteMany({ interviewId: interviewObjectId }),
+    ]);
+
+    // Delete the interview itself
+    await Interview.findByIdAndDelete(interviewId);
+
+    return true;
   }
 }
 

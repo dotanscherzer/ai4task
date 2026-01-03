@@ -4,6 +4,7 @@ import { Interview } from '../types';
 interface InterviewListProps {
   interviews: Interview[];
   onSelect: (interview: Interview) => void;
+  onDelete?: (interviewId: string) => void;
   selectedId?: string;
   getStatusLabel: (status: string) => string;
   getStatusClass: (status: string) => string;
@@ -12,6 +13,7 @@ interface InterviewListProps {
 const InterviewList = ({
   interviews,
   onSelect,
+  onDelete,
   selectedId,
   getStatusLabel,
   getStatusClass,
@@ -20,6 +22,13 @@ const InterviewList = ({
     const url = `${window.location.origin}/i/${token}`;
     navigator.clipboard.writeText(url);
     alert('הלינק הועתק!');
+  };
+
+  const handleDelete = (e: React.MouseEvent, interviewId: string) => {
+    e.stopPropagation();
+    if (window.confirm('האם אתה בטוח שברצונך למחוק את הריאיון הזה?')) {
+      onDelete?.(interviewId);
+    }
   };
 
   return (
@@ -41,15 +50,26 @@ const InterviewList = ({
           )}
           <div className="interview-meta">
             <span>{new Date(interview.createdAt).toLocaleDateString('he-IL')}</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                copyShareLink(interview.shareToken);
-              }}
-              className="copy-link-btn"
-            >
-              העתק לינק
-            </button>
+            <div className="interview-actions">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyShareLink(interview.shareToken);
+                }}
+                className="copy-link-btn"
+              >
+                העתק לינק
+              </button>
+              {onDelete && (
+                <button
+                  onClick={(e) => handleDelete(e, interview._id)}
+                  className="delete-btn"
+                  title="מחק ריאיון"
+                >
+                  🗑️
+                </button>
+              )}
+            </div>
           </div>
         </div>
       ))}

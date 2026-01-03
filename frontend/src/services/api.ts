@@ -58,6 +58,10 @@ export const interviewsAPI = {
     const response = await api.get(`/interviews/${id}/questions`);
     return response.data;
   },
+  delete: async (id: string) => {
+    const response = await api.delete(`/interviews/${id}`);
+    return response.data;
+  },
 };
 
 // Manager API

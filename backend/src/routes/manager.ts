@@ -43,7 +43,21 @@ router.post('/state', async (req: Request, res: Response) => {
     const currentTopicState = topicStates.find((ts: any) => ts.confidence < 0.7) || topicStates[0];
     const currentTopic = currentTopicState?.topicNumber || interview.selectedTopics[0];
     const topicQuestions = questions.filter((q: any) => q.topicNumber === currentTopic && q.enabled);
-    const nextQuestion = topicQuestions[0];
+
+    // Get all questions that have already been asked
+    const askedQuestions = await ChatMessage.find({
+      interviewId,
+      role: 'bot',
+      questionText: { $exists: true, $ne: null },
+    })
+      .distinct('questionText')
+      .lean();
+
+    // Filter out questions that have already been asked
+    const remainingQuestions = topicQuestions.filter(
+      (q: any) => !askedQuestions.includes(q.questionText)
+    );
+    const nextQuestion = remainingQuestions[0];
 
     // If no messages exist and there's a first question, create a bot message for it
     if (recentMessages.length === 0 && nextQuestion) {
@@ -140,7 +154,21 @@ router.post('/message', async (req: Request, res: Response) => {
       const topicQuestions = questions.filter(
         (q: any) => q.topicNumber === currentTopic && q.enabled
       );
-      const nextQuestion = topicQuestions[0];
+
+      // Get all questions that have already been asked
+      const askedQuestions = await ChatMessage.find({
+        interviewId,
+        role: 'bot',
+        questionText: { $exists: true, $ne: null },
+      })
+        .distinct('questionText')
+        .lean();
+
+      // Filter out questions that have already been asked
+      const remainingQuestions = topicQuestions.filter(
+        (q: any) => !askedQuestions.includes(q.questionText)
+      );
+      const nextQuestion = remainingQuestions[0];
 
       if (nextQuestion) {
         const botMessage = new ChatMessage({
@@ -202,13 +230,27 @@ router.post('/message', async (req: Request, res: Response) => {
     const currentTopic = currentTopicState?.topicNumber || interview.selectedTopics[0];
     const topicQuestions = questions.filter((q: any) => q.topicNumber === currentTopic && q.enabled);
 
+    // Get all questions that have already been asked (from bot messages)
+    const askedQuestions = await ChatMessage.find({
+      interviewId,
+      role: 'bot',
+      questionText: { $exists: true, $ne: null },
+    })
+      .distinct('questionText')
+      .lean();
+
+    // Filter out questions that have already been asked
+    const remainingQuestions = topicQuestions.filter(
+      (q: any) => !askedQuestions.includes(q.questionText)
+    );
+
     // Try LLM service
     const llmResponse = await llmService.getNextAction(
       message || '',
       action || 'answer',
       {
         currentTopic,
-        remainingQuestions: topicQuestions.map((q: any) => q.questionText),
+        remainingQuestions: remainingQuestions.map((q: any) => q.questionText),
         recentMessages: recentMessages.reverse().map((msg: any) => ({
           role: msg.role,
           content: msg.content,
@@ -272,8 +314,8 @@ router.post('/message', async (req: Request, res: Response) => {
         await answer.save();
       }
     } else {
-      // Fallback: use static questions
-      const nextQuestion = topicQuestions[0];
+      // Fallback: use static questions (only those not already asked)
+      const nextQuestion = remainingQuestions[0];
       if (nextQuestion) {
         response = {
           bot_message: nextQuestion.questionText,

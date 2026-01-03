@@ -88,5 +88,17 @@ router.get('/:id/questions', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
+  try {
+    const deleted = await interviewService.deleteInterview(req.params.id, req.userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Interview not found' });
+    }
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

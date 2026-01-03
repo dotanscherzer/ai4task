@@ -50,6 +50,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteInterview = async (interviewId: string) => {
+    try {
+      await interviewsAPI.delete(interviewId);
+      // If the deleted interview was selected, clear selection
+      if (selectedInterview?._id === interviewId) {
+        setSelectedInterview(null);
+      }
+      // Reload the list
+      loadInterviews();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'שגיאה במחיקת ריאיון');
+    }
+  };
+
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       not_started: 'לא התחיל',
@@ -100,6 +114,7 @@ const AdminDashboard = () => {
               <InterviewList
                 interviews={interviews}
                 onSelect={(interview) => setSelectedInterview(interview)}
+                onDelete={handleDeleteInterview}
                 selectedId={selectedInterview?._id}
                 getStatusLabel={getStatusLabel}
                 getStatusClass={getStatusClass}
