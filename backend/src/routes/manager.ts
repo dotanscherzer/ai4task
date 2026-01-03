@@ -9,6 +9,37 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// Helper function to find next topic with remaining questions
+function findNextTopicWithQuestions(
+  currentTopic: number,
+  selectedTopics: number[],
+  questions: any[],
+  askedQuestions: string[]
+): { topic: number; question: any } | null {
+  // Start from current topic index
+  const currentIndex = selectedTopics.indexOf(currentTopic);
+  
+  // Check all topics starting from current (including current)
+  for (let i = 0; i < selectedTopics.length; i++) {
+    const topicIndex = (currentIndex + i) % selectedTopics.length;
+    const topic = selectedTopics[topicIndex];
+    
+    const topicQuestions = questions.filter(
+      (q: any) => q.topicNumber === topic && q.enabled
+    );
+    
+    const remainingQuestions = topicQuestions.filter(
+      (q: any) => !askedQuestions.includes(q.questionText)
+    );
+    
+    if (remainingQuestions.length > 0) {
+      return { topic, question: remainingQuestions[0] };
+    }
+  }
+  
+  return null;
+}
+
 router.post('/state', async (req: Request, res: Response) => {
   try {
     const { share_token } = req.body;
@@ -44,8 +75,8 @@ router.post('/state', async (req: Request, res: Response) => {
     const currentTopic = currentTopicState?.topicNumber || interview.selectedTopics[0];
     const topicQuestions = questions.filter((q: any) => q.topicNumber === currentTopic && q.enabled);
 
-    // Get all questions that have already been asked
-    const askedQuestions = await ChatMessage.find({
+    // Get all questions that have already been asked (from bot messages)
+    const askedQuestionsFromMessages = await ChatMessage.find({
       interviewId,
       role: 'bot',
       questionText: { $exists: true, $ne: null },
@@ -53,7 +84,25 @@ router.post('/state', async (req: Request, res: Response) => {
       .distinct('questionText')
       .lean();
 
-    // Filter out questions that have already been asked
+    // Get all questions marked as covered in previous messages
+    const coveredQuestionsFromMeta = await ChatMessage.find({
+      interviewId,
+      role: 'bot',
+      'meta.coveredQuestions': { $exists: true, $ne: [] },
+    })
+      .select('meta.coveredQuestions')
+      .lean();
+
+    // Combine asked and covered questions
+    const allCoveredQuestions = new Set<string>(askedQuestionsFromMessages);
+    coveredQuestionsFromMeta.forEach((msg: any) => {
+      if (msg.meta?.coveredQuestions) {
+        msg.meta.coveredQuestions.forEach((q: string) => allCoveredQuestions.add(q));
+      }
+    });
+    const askedQuestions = Array.from(allCoveredQuestions);
+
+    // Filter out questions that have already been asked or covered
     const remainingQuestions = topicQuestions.filter(
       (q: any) => !askedQuestions.includes(q.questionText)
     );
@@ -159,8 +208,8 @@ router.post('/message', async (req: Request, res: Response) => {
         (q: any) => q.topicNumber === currentTopic && q.enabled
       );
 
-      // Get all questions that have already been asked
-      const askedQuestions = await ChatMessage.find({
+      // Get all questions that have already been asked (from bot messages)
+      const askedQuestionsFromMessages = await ChatMessage.find({
         interviewId,
         role: 'bot',
         questionText: { $exists: true, $ne: null },
@@ -168,14 +217,50 @@ router.post('/message', async (req: Request, res: Response) => {
         .distinct('questionText')
         .lean();
 
-      // Filter out questions that have already been asked
+      // Get all questions marked as covered in previous messages
+      const coveredQuestionsFromMeta = await ChatMessage.find({
+        interviewId,
+        role: 'bot',
+        'meta.coveredQuestions': { $exists: true, $ne: [] },
+      })
+        .select('meta.coveredQuestions')
+        .lean();
+
+      // Combine asked and covered questions
+      const allCoveredQuestions = new Set<string>(askedQuestionsFromMessages);
+      coveredQuestionsFromMeta.forEach((msg: any) => {
+        if (msg.meta?.coveredQuestions) {
+          msg.meta.coveredQuestions.forEach((q: string) => allCoveredQuestions.add(q));
+        }
+      });
+      const askedQuestions = Array.from(allCoveredQuestions);
+
+      // Filter out questions that have already been asked or covered
       const remainingQuestions = topicQuestions.filter(
         (q: any) => !askedQuestions.includes(q.questionText)
       );
-      const nextQuestion = remainingQuestions[0];
+      let nextQuestion = remainingQuestions[0];
+      let nextTopic = currentTopic;
+      let nextTopicState = currentTopicState;
+
+      // If no questions in current topic, check other topics
+      if (!nextQuestion) {
+        const nextTopicResult = findNextTopicWithQuestions(
+          currentTopic,
+          interview.selectedTopics,
+          questions,
+          askedQuestions
+        );
+        
+        if (nextTopicResult) {
+          nextQuestion = nextTopicResult.question;
+          nextTopic = nextTopicResult.topic;
+          nextTopicState = topicStates.find((ts: any) => ts.topicNumber === nextTopic);
+        }
+      }
 
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:171',message:'Skip action - question check',data:{currentTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,hasNextQuestion:!!nextQuestion},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:195',message:'Skip action - question check',data:{currentTopic,nextTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,hasNextQuestion:!!nextQuestion,switchedTopic:nextTopic!==currentTopic},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
 
       if (nextQuestion) {
@@ -183,7 +268,7 @@ router.post('/message', async (req: Request, res: Response) => {
           interviewId,
           role: 'bot',
           content: nextQuestion.questionText,
-          topicNumber: currentTopic,
+          topicNumber: nextTopic,
           questionText: nextQuestion.questionText,
         });
         await botMessage.save();
@@ -191,15 +276,15 @@ router.post('/message', async (req: Request, res: Response) => {
         res.json({
           bot_message: nextQuestion.questionText,
           next_action: 'ASK',
-          topic_number: currentTopic,
+          topic_number: nextTopic,
           next_question_text: nextQuestion.questionText,
           quick_replies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
-          topic_confidence: currentTopicState?.confidence || 0,
-          covered_points: currentTopicState?.coveredPoints || [],
+          topic_confidence: nextTopicState?.confidence || 0,
+          covered_points: nextTopicState?.coveredPoints || [],
         });
       } else {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:192',message:'Skip action - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:220',message:'Skip action - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         
         res.json({
@@ -247,7 +332,7 @@ router.post('/message', async (req: Request, res: Response) => {
     // #endregion
 
     // Get all questions that have already been asked (from bot messages)
-    const askedQuestions = await ChatMessage.find({
+    const askedQuestionsFromMessages = await ChatMessage.find({
       interviewId,
       role: 'bot',
       questionText: { $exists: true, $ne: null },
@@ -255,7 +340,25 @@ router.post('/message', async (req: Request, res: Response) => {
       .distinct('questionText')
       .lean();
 
-    // Filter out questions that have already been asked
+    // Get all questions marked as covered in previous messages
+    const coveredQuestionsFromMeta = await ChatMessage.find({
+      interviewId,
+      role: 'bot',
+      'meta.coveredQuestions': { $exists: true, $ne: [] },
+    })
+      .select('meta.coveredQuestions')
+      .lean();
+
+    // Combine asked and covered questions
+    const allCoveredQuestions = new Set<string>(askedQuestionsFromMessages);
+    coveredQuestionsFromMeta.forEach((msg: any) => {
+      if (msg.meta?.coveredQuestions) {
+        msg.meta.coveredQuestions.forEach((q: string) => allCoveredQuestions.add(q));
+      }
+    });
+    const askedQuestions = Array.from(allCoveredQuestions);
+
+    // Filter out questions that have already been asked or covered
     const remainingQuestions = topicQuestions.filter(
       (q: any) => !askedQuestions.includes(q.questionText)
     );
@@ -291,76 +394,175 @@ router.post('/message', async (req: Request, res: Response) => {
     let response: any;
 
     if (llmResponse) {
-      // Use LLM response
-      response = llmResponse;
+      // If LLM says END, verify there are no more questions in any topic
+      if (llmResponse.next_action === 'END') {
+        const nextTopicResult = findNextTopicWithQuestions(
+          currentTopic,
+          interview.selectedTopics,
+          questions,
+          askedQuestions
+        );
+        
+        if (nextTopicResult) {
+          // LLM was wrong - there are more questions, use fallback
+          const nextQuestion = nextTopicResult.question;
+          const nextTopic = nextTopicResult.topic;
+          const nextTopicState = topicStates.find((ts: any) => ts.topicNumber === nextTopic);
+          
+          response = {
+            bot_message: nextQuestion.questionText,
+            next_action: 'ASK',
+            topic_number: nextTopic,
+            next_question_text: nextQuestion.questionText,
+            quick_replies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
+            topic_confidence: nextTopicState?.confidence || 0,
+            covered_points: nextTopicState?.coveredPoints || [],
+          };
 
-      // Save bot message
-      const botMessage = new ChatMessage({
-        interviewId,
-        role: 'bot',
-        content: llmResponse.bot_message,
-        topicNumber: llmResponse.topic_number,
-        questionText: llmResponse.next_question_text,
-        meta: {
-          action: llmResponse.next_action,
-          topicConfidence: llmResponse.topic_confidence,
-          coveredQuestions: llmResponse.mark_questions_covered,
-        },
-      });
-      await botMessage.save();
+          const botMessage = new ChatMessage({
+            interviewId,
+            role: 'bot',
+            content: nextQuestion.questionText,
+            topicNumber: nextTopic,
+            questionText: nextQuestion.questionText,
+          });
+          await botMessage.save();
 
-      // Update topic state
-      if (currentTopicState) {
-        const topicStateDoc = await TopicState.findOne({
-          interviewId,
-          topicNumber: currentTopicState.topicNumber,
-        });
-        if (topicStateDoc) {
-          topicStateDoc.confidence = llmResponse.topic_confidence;
-          if (llmResponse.covered_points.length > 0) {
-            topicStateDoc.coveredPoints = [
-              ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-            ];
+          if (message) {
+            const answer = new Answer({
+              interviewId,
+              topicNumber: nextTopic,
+              questionText: nextQuestion.questionText,
+              answerText: message,
+              skipped: false,
+            });
+            await answer.save();
           }
-          await topicStateDoc.save();
+        } else {
+          // LLM was correct - no more questions
+          response = llmResponse;
+          
+          const botMessage = new ChatMessage({
+            interviewId,
+            role: 'bot',
+            content: llmResponse.bot_message,
+            topicNumber: llmResponse.topic_number,
+            questionText: llmResponse.next_question_text,
+            meta: {
+              action: llmResponse.next_action,
+              topicConfidence: llmResponse.topic_confidence,
+              coveredQuestions: llmResponse.mark_questions_covered,
+            },
+          });
+          await botMessage.save();
+          
+          // Update topic state
+          if (currentTopicState) {
+            const topicStateDoc = await TopicState.findOne({
+              interviewId,
+              topicNumber: currentTopicState.topicNumber,
+            });
+            if (topicStateDoc) {
+              topicStateDoc.confidence = llmResponse.topic_confidence;
+              if (llmResponse.covered_points.length > 0) {
+                topicStateDoc.coveredPoints = [
+                  ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+                ];
+              }
+              await topicStateDoc.save();
+            }
+          }
         }
-      }
+      } else {
+        // Use LLM response (ASK, FOLLOW_UP, TOPIC_WRAP)
+        response = llmResponse;
 
-      // Save answer if provided
-      if (message && llmResponse.next_question_text) {
-        const answer = new Answer({
+        // Save bot message
+        const botMessage = new ChatMessage({
           interviewId,
-          topicNumber: currentTopic,
+          role: 'bot',
+          content: llmResponse.bot_message,
+          topicNumber: llmResponse.topic_number,
           questionText: llmResponse.next_question_text,
-          answerText: message,
-          skipped: false,
+          meta: {
+            action: llmResponse.next_action,
+            topicConfidence: llmResponse.topic_confidence,
+            coveredQuestions: llmResponse.mark_questions_covered,
+          },
         });
-        await answer.save();
+        await botMessage.save();
+
+        // Update topic state
+        if (currentTopicState) {
+          const topicStateDoc = await TopicState.findOne({
+            interviewId,
+            topicNumber: currentTopicState.topicNumber,
+          });
+          if (topicStateDoc) {
+            topicStateDoc.confidence = llmResponse.topic_confidence;
+            if (llmResponse.covered_points.length > 0) {
+              topicStateDoc.coveredPoints = [
+                ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+              ];
+            }
+            await topicStateDoc.save();
+          }
+        }
+
+        // Save answer if provided
+        if (message && llmResponse.next_question_text) {
+          const answer = new Answer({
+            interviewId,
+            topicNumber: currentTopic,
+            questionText: llmResponse.next_question_text,
+            answerText: message,
+            skipped: false,
+          });
+          await answer.save();
+        }
       }
     } else {
       // Fallback: use static questions (only those not already asked)
-      const nextQuestion = remainingQuestions[0];
+      let nextQuestion = remainingQuestions[0];
+      let nextTopic = currentTopic;
+      let nextTopicState = currentTopicState;
+
+      // If no questions in current topic, check other topics
+      if (!nextQuestion) {
+        const nextTopicResult = findNextTopicWithQuestions(
+          currentTopic,
+          interview.selectedTopics,
+          questions,
+          askedQuestions
+        );
+        
+        if (nextTopicResult) {
+          nextQuestion = nextTopicResult.question;
+          nextTopic = nextTopicResult.topic;
+          nextTopicState = topicStates.find((ts: any) => ts.topicNumber === nextTopic);
+        }
+      }
       
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:318',message:'Before fallback decision',data:{hasNextQuestion:!!nextQuestion,currentTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),topicStates:topicStates.map((ts:any)=>({topic:ts.topicNumber,confidence:ts.confidence}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:378',message:'Before fallback decision',data:{hasNextQuestion:!!nextQuestion,currentTopic,nextTopic,remainingQuestionsCount:remainingQuestions.length,allTopics:interview.selectedTopics,switchedTopic:nextTopic!==currentTopic,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),topicStates:topicStates.map((ts:any)=>({topic:ts.topicNumber,confidence:ts.confidence}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
       // #endregion
       
       if (nextQuestion) {
         response = {
           bot_message: nextQuestion.questionText,
           next_action: 'ASK',
-          topic_number: currentTopic,
+          topic_number: nextTopic,
           next_question_text: nextQuestion.questionText,
           quick_replies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
-          topic_confidence: currentTopicState?.confidence || 0,
-          covered_points: currentTopicState?.coveredPoints || [],
+          topic_confidence: nextTopicState?.confidence || 0,
+          covered_points: nextTopicState?.coveredPoints || [],
         };
 
         const botMessage = new ChatMessage({
           interviewId,
           role: 'bot',
           content: nextQuestion.questionText,
-          topicNumber: currentTopic,
+          topicNumber: nextTopic,
           questionText: nextQuestion.questionText,
         });
         await botMessage.save();
@@ -368,7 +570,7 @@ router.post('/message', async (req: Request, res: Response) => {
         if (message) {
           const answer = new Answer({
             interviewId,
-            topicNumber: currentTopic,
+            topicNumber: nextTopic,
             questionText: nextQuestion.questionText,
             answerText: message,
             skipped: false,
@@ -377,7 +579,7 @@ router.post('/message', async (req: Request, res: Response) => {
         }
       } else {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:349',message:'No questions in current topic - checking other topics',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,totalQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length,remainingQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>!askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:409',message:'No questions in any topic - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,totalQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length,remainingQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>!askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         
         response = {
