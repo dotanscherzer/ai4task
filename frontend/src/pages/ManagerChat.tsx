@@ -4,6 +4,7 @@ import { managerAPI } from '../services/api';
 import ChatThread from '../components/ChatThread';
 import QuickReplies from '../components/QuickReplies';
 import TopicHeader from '../components/TopicHeader';
+import ProgressBar from '../components/ProgressBar';
 import './ManagerChat.css';
 
 interface ChatState {
@@ -15,6 +16,11 @@ interface ChatState {
   coveredPoints: string[];
   quickReplies: string[];
   status: 'init' | 'asking' | 'waiting' | 'finished';
+  progress: {
+    answered: number;
+    skipped: number;
+    total: number;
+  };
 }
 
 const ManagerChat = () => {
@@ -59,6 +65,7 @@ const ManagerChat = () => {
         coveredPoints: data.topic_state?.[0]?.covered_points || [],
         quickReplies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
         status: data.interview.status === 'completed' ? 'finished' : 'asking',
+        progress: data.progress || { answered: 0, skipped: 0, total: 0 },
       });
     } catch (err: any) {
       setError(err.response?.data?.error || 'שגיאה בטעינת הריאיון');
@@ -97,6 +104,7 @@ const ManagerChat = () => {
         coveredPoints: response.covered_points || [],
         quickReplies: response.quick_replies || [],
         status: response.next_action === 'END' ? 'finished' : 'asking',
+        progress: response.progress || state.progress,
       });
 
       setInputMessage('');
@@ -156,6 +164,11 @@ const ManagerChat = () => {
 
   return (
     <div className="manager-chat">
+      <ProgressBar
+        answered={state.progress.answered}
+        skipped={state.progress.skipped}
+        total={state.progress.total}
+      />
       <TopicHeader
         topicNumber={state.currentTopic}
         confidence={state.topicConfidence}

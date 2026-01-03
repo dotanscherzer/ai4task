@@ -149,7 +149,38 @@ export class EmailService {
 `;
     });
 
+    // Generate conclusions based on interview data
+    const lowConfidenceTopics = topicStates.filter((ts: any) => ts.confidence < 0.5);
+    const skippedCount = answers.filter((a: any) => a.skipped).length;
+    const skipRate = stats.total > 0 ? (skippedCount / stats.total) : 0;
+
     html += `
+    <div class="topic-section">
+      <h2>מסקנות</h2>
+      
+      ${lowConfidenceTopics.length > 0 ? `
+      <h3>חסמים</h3>
+      <ul>
+        ${lowConfidenceTopics.map((ts: any) => `<li>נושא ${ts.topicNumber}: ביטחון נמוך (${(ts.confidence * 100).toFixed(0)}%) - ייתכן שדורש הבהרה נוספת</li>`).join('')}
+      </ul>
+      ` : ''}
+
+      ${skipRate > 0.3 ? `
+      <h3>סיכונים</h3>
+      <ul>
+        <li>שיעור דילוגים גבוה (${(skipRate * 100).toFixed(0)}%) - ${skippedCount} מתוך ${stats.total} שאלות דולגו. ייתכן שיש נושאים שדורשים המשך שיחה.</li>
+      </ul>
+      ` : ''}
+
+      <h3>Action Items</h3>
+      <ul>
+        ${lowConfidenceTopics.length > 0 ? `<li>להמשיך לפתח את הנושאים עם ביטחון נמוך: ${lowConfidenceTopics.map((ts: any) => `נושא ${ts.topicNumber}`).join(', ')}</li>` : ''}
+        ${skipRate > 0.3 ? `<li>לבחון את השאלות שדולגו ולשקול לחזור אליהן בפגישה נוספת</li>` : ''}
+        ${lowConfidenceTopics.length === 0 && skipRate <= 0.3 ? `<li>הריאיון הושלם בהצלחה. כל הנושאים כוסו ברמה מספקת.</li>` : ''}
+        <li>לבדוק את המידע שנאסף ולהשתמש בו לבניית מפת אתגר</li>
+      </ul>
+    </div>
+
     <div class="topic-section">
       <h2>סיכום כללי</h2>
       <p>הריאיון הושלם בהצלחה. כל המידע נשמר במערכת.</p>

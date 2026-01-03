@@ -5,6 +5,7 @@ import { Answer } from '../models/Answer';
 import { TopicState } from '../models/TopicState';
 import { InterviewSession } from '../models/InterviewSession';
 import { llmService } from '../services/llmService';
+import { emailService } from '../services/emailService';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -69,6 +70,11 @@ router.post('/state', async (req: Request, res: Response) => {
     const answers = await Answer.find({ interviewId }).lean();
     const answered = answers.filter((a) => !a.skipped).length;
     const skipped = answers.filter((a) => a.skipped).length;
+    
+    // Calculate total enabled questions for selected topics
+    const totalQuestions = questions.filter(
+      (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
+    ).length;
 
     // Determine current topic and next question
     const currentTopicState = topicStates.find((ts: any) => ts.confidence < 0.7) || topicStates[0];
@@ -149,6 +155,7 @@ router.post('/state', async (req: Request, res: Response) => {
       progress: {
         answered,
         skipped,
+        total: totalQuestions,
       },
       current: {
         topic_number: currentTopic,
@@ -273,6 +280,14 @@ router.post('/message', async (req: Request, res: Response) => {
         });
         await botMessage.save();
 
+        // Calculate progress
+        const skipAnswers = await Answer.find({ interviewId }).lean();
+        const skipAnswered = skipAnswers.filter((a) => !a.skipped).length;
+        const skipSkipped = skipAnswers.filter((a) => a.skipped).length;
+        const skipTotalQuestions = questions.filter(
+          (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
+        ).length;
+
         res.json({
           bot_message: nextQuestion.questionText,
           next_action: 'ASK',
@@ -281,20 +296,54 @@ router.post('/message', async (req: Request, res: Response) => {
           quick_replies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
           topic_confidence: nextTopicState?.confidence || 0,
           covered_points: nextTopicState?.coveredPoints || [],
+          progress: {
+            answered: skipAnswered,
+            skipped: skipSkipped,
+            total: skipTotalQuestions,
+          },
         });
       } else {
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:220',message:'Skip action - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedCount:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
         
-        res.json({
+        // Calculate progress for end response
+        const endAnswers = await Answer.find({ interviewId }).lean();
+        const endAnswered = endAnswers.filter((a) => !a.skipped).length;
+        const endSkipped = endAnswers.filter((a) => a.skipped).length;
+        const endTotalQuestions = questions.filter(
+          (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
+        ).length;
+
+        const endResponse = {
           bot_message: 'סיימנו את כל השאלות. תודה!',
-          next_action: 'END',
+          next_action: 'END' as const,
           topic_number: currentTopic,
-          quick_replies: [],
+          quick_replies: [] as string[],
           topic_confidence: 1,
-          covered_points: [],
-        });
+          covered_points: [] as string[],
+          progress: {
+            answered: endAnswered,
+            skipped: endSkipped,
+            total: endTotalQuestions,
+          },
+        };
+
+        // Auto-complete interview when END action is detected
+        if (interview.status !== 'completed') {
+          try {
+            await interviewService.updateInterviewStatus(interview._id.toString(), 'completed');
+            // Send email in background (don't block response)
+            emailService.sendInterviewSummary(interview._id.toString()).catch((error) => {
+              console.error('Failed to send interview summary email:', error);
+            });
+          } catch (error) {
+            console.error('Failed to complete interview:', error);
+            // Don't fail the request if completion fails
+          }
+        }
+
+        res.json(endResponse);
       }
       return;
     }
@@ -593,9 +642,38 @@ router.post('/message', async (req: Request, res: Response) => {
       }
     }
 
+    // Calculate progress for response
+    const answers = await Answer.find({ interviewId }).lean();
+    const answered = answers.filter((a) => !a.skipped).length;
+    const skipped = answers.filter((a) => a.skipped).length;
+    const totalQuestions = questions.filter(
+      (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
+    ).length;
+
+    // Add progress to response
+    response.progress = {
+      answered,
+      skipped,
+      total: totalQuestions,
+    };
+
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:361',message:'Final response',data:{nextAction:response.next_action,topicNumber:response.topic_number,hasBotMessage:!!response.bot_message,botMessagePreview:response.bot_message?.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
+
+    // Auto-complete interview when END action is detected
+    if (response.next_action === 'END' && interview.status !== 'completed') {
+      try {
+        await interviewService.updateInterviewStatus(interview._id.toString(), 'completed');
+        // Send email in background (don't block response)
+        emailService.sendInterviewSummary(interview._id.toString()).catch((error) => {
+          console.error('Failed to send interview summary email:', error);
+        });
+      } catch (error) {
+        console.error('Failed to complete interview:', error);
+        // Don't fail the request if completion fails
+      }
+    }
 
     res.json(response);
   } catch (error: any) {
@@ -618,6 +696,11 @@ router.post('/complete', async (req: Request, res: Response) => {
     }
 
     await interviewService.updateInterviewStatus(data.interview._id.toString(), 'completed');
+
+    // Send email in background (don't block response)
+    emailService.sendInterviewSummary(data.interview._id.toString()).catch((error) => {
+      console.error('Failed to send interview summary email:', error);
+    });
 
     res.json({ ok: true, interview_id: data.interview._id.toString() });
   } catch (error: any) {
