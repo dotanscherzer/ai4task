@@ -1,7 +1,7 @@
 .quick-replies {
   display: flex;
-  gap: 10px;
-  padding: 15px 20px;
+  gap: 8px;
+  padding: 12px 20px;
   background: white;
   border-top: 1px solid #e0e0e0;
   flex-wrap: wrap;
@@ -9,12 +9,14 @@
 }
 
 .quick-reply-btn {
-  padding: 8px 16px;
-  background: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 20px;
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
   transition: all 0.2s;
 }
 
@@ -22,10 +24,17 @@
   background: #667eea;
   color: white;
   border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.quick-reply-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .quick-reply-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  background: #f0f0f0;
 }
 

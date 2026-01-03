@@ -41,6 +41,17 @@ const ManagerChat = () => {
     scrollToBottom();
   }, [state?.messages]);
 
+  // Also scroll when state changes (including when bot sends message)
+  useEffect(() => {
+    if (state) {
+      // Use setTimeout to ensure DOM is updated before scrolling
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [state]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };

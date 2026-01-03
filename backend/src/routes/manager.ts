@@ -200,6 +200,18 @@ router.post('/message', async (req: Request, res: Response) => {
 
     // Handle different actions
     if (action === 'skip') {
+      // Get current topic state first
+      const currentTopicState = topicStates.find((ts: any) => ts.confidence < 0.7) || topicStates[0];
+      
+      // Find the last question asked by the bot
+      const lastBotMessage = await ChatMessage.findOne({
+        interviewId,
+        role: 'bot',
+        questionText: { $exists: true, $ne: null },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
       // Save skip message
       const skipMessage = new ChatMessage({
         interviewId,
@@ -208,8 +220,25 @@ router.post('/message', async (req: Request, res: Response) => {
       });
       await skipMessage.save();
 
+      // Save Answer with skipped=true for the last question
+      if (lastBotMessage && lastBotMessage.questionText) {
+        const skippedAnswer = new Answer({
+          interviewId,
+          topicNumber: lastBotMessage.topicNumber || currentTopicState?.topicNumber || interview.selectedTopics[0],
+          questionText: lastBotMessage.questionText,
+          skipped: true,
+        });
+        await skippedAnswer.save();
+
+        // Update session skipped count
+        const session = await InterviewSession.findOne({ interviewId });
+        if (session) {
+          session.skippedCount = (session.skippedCount || 0) + 1;
+          await session.save();
+        }
+      }
+
       // Get next question (fallback mode)
-      const currentTopicState = topicStates.find((ts: any) => ts.confidence < 0.7) || topicStates[0];
       const currentTopic = currentTopicState?.topicNumber || interview.selectedTopics[0];
       const topicQuestions = questions.filter(
         (q: any) => q.topicNumber === currentTopic && q.enabled
@@ -625,6 +654,42 @@ router.post('/message', async (req: Request, res: Response) => {
             skipped: false,
           });
           await answer.save();
+
+          // Update confidence in fallback mode based on number of answers
+          if (nextTopicState) {
+            const topicStateDoc = await TopicState.findOne({
+              interviewId,
+              topicNumber: nextTopic,
+            });
+            if (topicStateDoc) {
+              // Count answered questions for this topic
+              const topicAnswers = await Answer.find({
+                interviewId,
+                topicNumber: nextTopic,
+                skipped: false,
+              }).lean();
+              
+              // Count total questions for this topic
+              const topicQuestionsCount = questions.filter(
+                (q: any) => q.topicNumber === nextTopic && q.enabled
+              ).length;
+              
+              // Calculate confidence: min(0.9, answered / total * 1.2)
+              // This gives up to 90% confidence when most questions are answered
+              const answeredCount = topicAnswers.length;
+              const newConfidence = Math.min(0.9, (answeredCount / Math.max(1, topicQuestionsCount)) * 1.2);
+              
+              // Only update if confidence increased
+              if (newConfidence > topicStateDoc.confidence) {
+                topicStateDoc.confidence = newConfidence;
+                await topicStateDoc.save();
+                
+                // Update nextTopicState for response
+                nextTopicState.confidence = newConfidence;
+                response.topic_confidence = newConfidence;
+              }
+            }
+          }
         }
       } else {
         // #region agent log
@@ -639,6 +704,34 @@ router.post('/message', async (req: Request, res: Response) => {
           topic_confidence: 1,
           covered_points: [],
         };
+      }
+    }
+
+    // Calculate progress for response
+    const answers = await Answer.find({ interviewId }).lean();
+    
+    // Update confidence for all topics in fallback mode (to catch up on any missed updates)
+    if (!llmResponse) {
+      for (const topicState of topicStates) {
+        const topicAnswers = answers.filter(
+          (a: any) => a.topicNumber === topicState.topicNumber && !a.skipped
+        );
+          const topicQuestionsCount = questions.filter(
+            (q: any) => q.topicNumber === topicState.topicNumber && q.enabled
+          ).length;
+          
+          if (topicQuestionsCount > 0) {
+            const newConfidence = Math.min(0.9, (topicAnswers.length / topicQuestionsCount) * 1.2);
+            const topicStateDoc = await TopicState.findOne({
+              interviewId,
+              topicNumber: topicState.topicNumber,
+            });
+            if (topicStateDoc && newConfidence > topicStateDoc.confidence) {
+              topicStateDoc.confidence = newConfidence;
+              await topicStateDoc.save();
+            }
+          }
+        }
       }
     }
 
