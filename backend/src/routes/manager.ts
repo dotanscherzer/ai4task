@@ -223,13 +223,19 @@ router.post('/message', async (req: Request, res: Response) => {
 
       // Update topic state
       if (currentTopicState) {
-        currentTopicState.confidence = llmResponse.topic_confidence;
-        if (llmResponse.covered_points.length > 0) {
-          currentTopicState.coveredPoints = [
-            ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-          ];
+        const topicStateDoc = await TopicState.findOne({
+          interviewId,
+          topicNumber: currentTopicState.topicNumber,
+        });
+        if (topicStateDoc) {
+          topicStateDoc.confidence = llmResponse.topic_confidence;
+          if (llmResponse.covered_points.length > 0) {
+            topicStateDoc.coveredPoints = [
+              ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+            ];
+          }
+          await topicStateDoc.save();
         }
-        await currentTopicState.save();
       }
 
       // Save answer if provided
