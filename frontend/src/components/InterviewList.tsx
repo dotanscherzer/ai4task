@@ -1,14 +1,5 @@
 import './InterviewList.css';
-
-interface Interview {
-  _id: string;
-  managerName: string;
-  managerRole?: string;
-  status: string;
-  shareToken: string;
-  selectedTopics: number[];
-  createdAt: string;
-}
+import { Interview } from '../types';
 
 interface InterviewListProps {
   interviews: Interview[];

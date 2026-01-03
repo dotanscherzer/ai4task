@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react';
 import { interviewsAPI } from '../services/api';
+import { Interview } from '../types';
 import './InterviewDetails.css';
-
-interface Interview {
-  _id: string;
-  managerName: string;
-  managerRole?: string;
-  status: string;
-  shareToken: string;
-  selectedTopics: number[];
-  createdAt: string;
-}
 
 interface InterviewDetailsProps {
   interview: Interview;

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Interview } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -36,8 +37,8 @@ export const authAPI = {
 
 // Interviews API
 export const interviewsAPI = {
-  list: async () => {
-    const response = await api.get('/interviews');
+  list: async (): Promise<Interview[]> => {
+    const response = await api.get<Interview[]>('/interviews');
     return response.data;
   },
   get: async (id: string) => {

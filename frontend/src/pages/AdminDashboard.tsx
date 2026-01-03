@@ -4,17 +4,8 @@ import { interviewsAPI, emailAPI } from '../services/api';
 import InterviewList from '../components/InterviewList';
 import CreateInterviewModal from '../components/CreateInterviewModal';
 import InterviewDetails from '../components/InterviewDetails';
+import { Interview } from '../types';
 import './AdminDashboard.css';
-
-interface Interview {
-  _id: string;
-  managerName: string;
-  managerRole?: string;
-  status: 'not_started' | 'in_progress' | 'completed';
-  shareToken: string;
-  selectedTopics: number[];
-  createdAt: string;
-}
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
