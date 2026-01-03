@@ -1,0 +1,31 @@
+.quick-replies {
+  display: flex;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.quick-reply-btn {
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.quick-reply-btn:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.quick-reply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+

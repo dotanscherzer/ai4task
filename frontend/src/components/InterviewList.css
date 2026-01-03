@@ -1,0 +1,86 @@
+.interview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.interview-item {
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.interview-item:hover {
+  border-color: #667eea;
+  background: #f8f9ff;
+}
+
+.interview-item.selected {
+  border-color: #667eea;
+  background: #f0f2ff;
+}
+
+.interview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.interview-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-not-started {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.status-in-progress {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.interview-role {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.interview-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.copy-link-btn {
+  padding: 4px 8px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.copy-link-btn:hover {
+  background: #5568d3;
+}
+

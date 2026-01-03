@@ -1,0 +1,56 @@
+.topic-header {
+  background: white;
+  padding: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.topic-info h2 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.confidence-bar {
+  margin-bottom: 15px;
+}
+
+.confidence-label {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.confidence-progress {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.covered-points {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.covered-points strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.covered-points ul {
+  margin: 0;
+  padding-right: 20px;
+  color: #555;
+}
+
+.covered-points li {
+  margin-bottom: 5px;
+}
+
