@@ -82,9 +82,10 @@ const ManagerChat = () => {
       setError('');
 
       // Add user message to UI
+      const updatedMessages = [...state.messages, { role: 'manager', content: message }];
       setState({
         ...state,
-        messages: [...state.messages, { role: 'manager', content: message }],
+        messages: updatedMessages,
         status: 'waiting',
       });
 
@@ -94,8 +95,7 @@ const ManagerChat = () => {
       setState({
         ...state,
         messages: [
-          ...state.messages,
-          { role: 'manager', content: message },
+          ...updatedMessages,
           { role: 'bot', content: response.bot_message },
         ],
         currentTopic: response.topic_number,

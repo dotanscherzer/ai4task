@@ -108,7 +108,7 @@ const AdminDashboard = () => {
             ) : (
               <InterviewList
                 interviews={interviews}
-                onSelect={setSelectedInterview}
+                onSelect={(interview) => setSelectedInterview(interview)}
                 selectedId={selectedInterview?._id}
                 getStatusLabel={getStatusLabel}
                 getStatusClass={getStatusClass}

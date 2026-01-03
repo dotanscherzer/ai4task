@@ -59,7 +59,6 @@ const InterviewDetails = ({ interview, onSendEmail, onClose }: InterviewDetailsP
   }
 
   const answers = details?.answers || [];
-  const messages = details?.messages || [];
   const topicStates = details?.topicStates || [];
 
   // Group answers by topic
