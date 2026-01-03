@@ -72,6 +72,9 @@ router.post('/send', async (req: AuthRequest, res: Response) => {
     if (error.message?.includes('RESEND_API_KEY')) {
       statusCode = 503; // Service Unavailable
       errorMessage = 'Email service is not configured. Please contact the administrator.';
+    } else if (error.message?.includes('domain is not verified') || error.message?.includes('לא מאומת')) {
+      statusCode = 400;
+      errorMessage = error.message; // Already in Hebrew from EmailService
     } else if (error.message?.includes('Invalid email')) {
       statusCode = 400;
       errorMessage = error.message;

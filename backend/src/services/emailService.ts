@@ -22,6 +22,12 @@ export class EmailService {
     }
     this.fromEmail = process.env.FROM_EMAIL || 'Challenge Bot <noreply@example.com>';
     console.log(`📧 From email: ${this.fromEmail}`);
+    
+    // Warn if using example.com or unverified domain
+    if (this.fromEmail.includes('@example.com') || this.fromEmail.includes('@yourdomain.com')) {
+      console.warn('⚠️ WARNING: FROM_EMAIL contains example.com or yourdomain.com. This will not work with Resend.');
+      console.warn('⚠️ Please set FROM_EMAIL to a verified domain or use onboarding@resend.dev for testing.');
+    }
   }
 
   private validateEmail(email: string): boolean {
@@ -85,7 +91,25 @@ export class EmailService {
 
       if (result.error) {
         console.error('❌ Resend API Error:', result.error);
-        throw new Error(`Resend API error: ${JSON.stringify(result.error)}`);
+        
+        // Handle specific Resend errors with user-friendly messages
+        const error = result.error as any; // Resend error type may vary
+        if (error.statusCode === 403 && (error.message?.includes('domain is not verified') || error.message?.includes('not verified'))) {
+          const domainMatch = error.message?.match(/The (.+?) domain is not verified/) || 
+                            error.message?.match(/domain (.+?) is not verified/);
+          const domain = domainMatch ? domainMatch[1] : 'your domain';
+          throw new Error(
+            `הדומיין ${domain} לא מאומת ב-Resend. ` +
+            `אנא הוסף ואמת את הדומיין ב-https://resend.com/domains או ` +
+            `השתמש בדומיין מאומת ב-FROM_EMAIL. ` +
+            `לבדיקות, ניתן להשתמש ב-onboarding@resend.dev`
+          );
+        }
+        
+        // Generic Resend error
+        throw new Error(
+          `שגיאת Resend API: ${error.message || JSON.stringify(result.error)}`
+        );
       }
 
       if (!result.data) {
