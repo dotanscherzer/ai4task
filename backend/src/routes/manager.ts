@@ -42,6 +42,28 @@ function findNextTopicWithQuestions(
   return null;
 }
 
+// Helper function to find the last question asked before a given timestamp
+async function findLastQuestionBefore(
+  interviewId: mongoose.Types.ObjectId,
+  beforeTimestamp: Date | null
+): Promise<any> {
+  const query: any = {
+    interviewId,
+    role: 'bot',
+    questionText: { $exists: true, $ne: null },
+  };
+  
+  if (beforeTimestamp) {
+    query.createdAt = { $lt: beforeTimestamp };
+  }
+  
+  const lastQuestion = await ChatMessage.findOne(query)
+    .sort({ createdAt: -1 })
+    .lean();
+  
+  return lastQuestion;
+}
+
 router.post('/state', async (req: Request, res: Response) => {
   try {
     const { share_token } = req.body;
@@ -399,6 +421,7 @@ router.post('/message', async (req: Request, res: Response) => {
     }
 
     // Save manager message
+    let managerMessageTimestamp: Date | null = null;
     if (message && action === 'answer') {
       const managerMessage = new ChatMessage({
         interviewId,
@@ -406,6 +429,7 @@ router.post('/message', async (req: Request, res: Response) => {
         content: message,
       });
       await managerMessage.save();
+      managerMessageTimestamp = managerMessage.createdAt;
 
       // Update session counters
       const session = await InterviewSession.findOne({ interviewId });
@@ -527,15 +551,19 @@ router.post('/message', async (req: Request, res: Response) => {
           });
           await botMessage.save();
 
+          // Save answer for the previous question (the one that was answered before skip)
           if (message) {
-            const answer = new Answer({
-              interviewId,
-              topicNumber: nextTopic,
-              questionText: nextQuestion.questionText,
-              answerText: message,
-              skipped: false,
-            });
-            await answer.save();
+            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+            if (lastQuestion && lastQuestion.questionText) {
+              const answer = new Answer({
+                interviewId,
+                topicNumber: lastQuestion.topicNumber || nextTopic,
+                questionText: lastQuestion.questionText,
+                answerText: message,
+                skipped: false,
+              });
+              await answer.save();
+            }
           }
         } else {
           // LLM was correct - no more questions
@@ -697,16 +725,19 @@ router.post('/message', async (req: Request, res: Response) => {
                 }
               }
 
-              // Save answer for the original question if provided
-              if (message && lastOriginalQuestion.questionText) {
-                const answer = new Answer({
-                  interviewId,
-                  topicNumber: lastOriginalQuestion.topicNumber || currentTopic,
-                  questionText: lastOriginalQuestion.questionText,
-                  answerText: message,
-                  skipped: false,
-                });
-                await answer.save();
+              // Save answer for the question that was answered (could be follow-up or original)
+              if (message) {
+                const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+                if (lastQuestion && lastQuestion.questionText) {
+                  const answer = new Answer({
+                    interviewId,
+                    topicNumber: lastQuestion.topicNumber || currentTopic,
+                    questionText: lastQuestion.questionText,
+                    answerText: message,
+                    skipped: false,
+                  });
+                  await answer.save();
+                }
               }
             }
           } else {
@@ -744,16 +775,19 @@ router.post('/message', async (req: Request, res: Response) => {
               }
             }
 
-            // Save answer if provided
-            if (message && llmResponse.next_question_text) {
-              const answer = new Answer({
-                interviewId,
-                topicNumber: currentTopic,
-                questionText: llmResponse.next_question_text,
-                answerText: message,
-                skipped: false,
-              });
-              await answer.save();
+            // Save answer if provided - find the last question asked before the user answered
+            if (message) {
+              const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+              if (lastQuestion && lastQuestion.questionText) {
+                const answer = new Answer({
+                  interviewId,
+                  topicNumber: lastQuestion.topicNumber || currentTopic,
+                  questionText: lastQuestion.questionText,
+                  answerText: message,
+                  skipped: false,
+                });
+                await answer.save();
+              }
             }
           }
         } else {
@@ -792,16 +826,19 @@ router.post('/message', async (req: Request, res: Response) => {
             }
           }
 
-          // Save answer if provided
-          if (message && llmResponse.next_question_text) {
-            const answer = new Answer({
-              interviewId,
-              topicNumber: currentTopic,
-              questionText: llmResponse.next_question_text,
-              answerText: message,
-              skipped: false,
-            });
-            await answer.save();
+          // Save answer if provided - find the last question asked before the user answered
+          if (message) {
+            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+            if (lastQuestion && lastQuestion.questionText) {
+              const answer = new Answer({
+                interviewId,
+                topicNumber: lastQuestion.topicNumber || currentTopic,
+                questionText: lastQuestion.questionText,
+                answerText: message,
+                skipped: false,
+              });
+              await answer.save();
+            }
           }
         }
       }
@@ -851,15 +888,20 @@ router.post('/message', async (req: Request, res: Response) => {
         });
         await botMessage.save();
 
+        // Save answer for the previous question (the one that was answered)
         if (message) {
-          const answer = new Answer({
-            interviewId,
-            topicNumber: nextTopic,
-            questionText: nextQuestion.questionText,
-            answerText: message,
-            skipped: false,
-          });
-          await answer.save();
+          const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+          if (lastQuestion && lastQuestion.questionText) {
+            const answer = new Answer({
+              interviewId,
+              topicNumber: lastQuestion.topicNumber || nextTopic,
+              questionText: lastQuestion.questionText,
+              answerText: message,
+              skipped: false,
+            });
+            await answer.save();
+          }
+        }
 
           // Update confidence in fallback mode based on number of answers
           if (nextTopicState) {
