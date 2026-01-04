@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed.ts",
-    "migrate:challenges": "tsx src/scripts/migrateChallenges.ts"
+    "migrate:challenges": "tsx src/scripts/migrateChallenges.ts",
+    "migrate:link-questions": "tsx src/scripts/linkQuestionsToChallenge.ts"
   },
   "keywords": [],
   "author": "",
