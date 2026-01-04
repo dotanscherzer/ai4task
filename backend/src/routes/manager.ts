@@ -903,39 +903,38 @@ router.post('/message', async (req: Request, res: Response) => {
           }
         }
 
-          // Update confidence in fallback mode based on number of answers
-          if (nextTopicState) {
-            const topicStateDoc = await TopicState.findOne({
+        // Update confidence in fallback mode based on number of answers
+        if (nextTopicState) {
+          const topicStateDoc = await TopicState.findOne({
+            interviewId,
+            topicNumber: nextTopic,
+          });
+          if (topicStateDoc) {
+            // Count answered questions for this topic
+            const topicAnswers = await Answer.find({
               interviewId,
               topicNumber: nextTopic,
-            });
-            if (topicStateDoc) {
-              // Count answered questions for this topic
-              const topicAnswers = await Answer.find({
-                interviewId,
-                topicNumber: nextTopic,
-                skipped: false,
-              }).lean();
+              skipped: false,
+            }).lean();
+            
+            // Count total questions for this topic
+            const topicQuestionsCount = questions.filter(
+              (q: any) => q.topicNumber === nextTopic && q.enabled
+            ).length;
+            
+            // Calculate confidence: min(0.9, answered / total * 1.2)
+            // This gives up to 90% confidence when most questions are answered
+            const answeredCount = topicAnswers.length;
+            const newConfidence = Math.min(0.9, (answeredCount / Math.max(1, topicQuestionsCount)) * 1.2);
+            
+            // Only update if confidence increased
+            if (newConfidence > topicStateDoc.confidence) {
+              topicStateDoc.confidence = newConfidence;
+              await topicStateDoc.save();
               
-              // Count total questions for this topic
-              const topicQuestionsCount = questions.filter(
-                (q: any) => q.topicNumber === nextTopic && q.enabled
-              ).length;
-              
-              // Calculate confidence: min(0.9, answered / total * 1.2)
-              // This gives up to 90% confidence when most questions are answered
-              const answeredCount = topicAnswers.length;
-              const newConfidence = Math.min(0.9, (answeredCount / Math.max(1, topicQuestionsCount)) * 1.2);
-              
-              // Only update if confidence increased
-              if (newConfidence > topicStateDoc.confidence) {
-                topicStateDoc.confidence = newConfidence;
-                await topicStateDoc.save();
-                
-                // Update nextTopicState for response
-                nextTopicState.confidence = newConfidence;
-                response.topic_confidence = newConfidence;
-              }
+              // Update nextTopicState for response
+              nextTopicState.confidence = newConfidence;
+              response.topic_confidence = newConfidence;
             }
           }
         }
