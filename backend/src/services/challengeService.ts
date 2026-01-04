@@ -18,17 +18,22 @@ export class ChallengeService {
     await challenge.save();
     const challengeId = challenge._id;
 
+    console.log(`\n🔍 Starting question generation for challenge: ${data.name} (${challengeId})`);
+
     // Generate questions for each topic
     try {
       // First, verify Topics exist in DB
       const allTopicsCount = await Topic.countDocuments();
+      console.log(`📊 Topics in DB: ${allTopicsCount}`);
       if (allTopicsCount === 0) {
         console.error('❌ No Topics found in database. Please run seed script first: npm run seed');
         throw new Error('Topics not found in database. Please run seed script first.');
       }
 
       // Fetch topics from DB
+      console.log(`🔍 Looking for topics: ${data.topicNumbers.join(', ')}`);
       const topics = await Topic.find({ number: { $in: data.topicNumbers } });
+      console.log(`✅ Found ${topics.length} topics in DB`);
       
       if (topics.length === 0) {
         console.error(`❌ No topics found for numbers: ${data.topicNumbers.join(', ')}`);
@@ -42,16 +47,28 @@ export class ChallengeService {
       }
 
       // Check if LLM API key is configured
-      const hasLLMKey = !!process.env.OPENROUTER_API_KEY;
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      const hasLLMKey = !!apiKey;
+      console.log(`🔑 OPENROUTER_API_KEY status: ${hasLLMKey ? 'SET' : 'NOT SET'}${hasLLMKey ? ` (length: ${apiKey?.length || 0})` : ''}`);
+      
       if (!hasLLMKey) {
         console.warn('⚠️ OPENROUTER_API_KEY not set. Questions will not be generated automatically.');
+        console.warn('⚠️ Challenge created successfully, but no questions were generated.');
         // Continue - challenge is created, but without questions
       }
 
       // Generate questions for each topic
       let totalQuestionsCreated = 0;
+      let failedTopics = 0;
+      
+      console.log(`\n🚀 Starting question generation for ${topics.length} topics...\n`);
+      
       for (const topic of topics) {
         try {
+          console.log(`📝 Generating questions for topic ${topic.number}: ${topic.label}`);
+          console.log(`   Challenge: ${data.name}`);
+          console.log(`   Topic description: ${topic.description.substring(0, 100)}...`);
+          
           const questions = await llmService.generateQuestionsForChallenge(
             data.name,
             data.description,
@@ -61,6 +78,8 @@ export class ChallengeService {
               description: topic.description,
             }
           );
+
+          console.log(`   📊 LLM returned ${questions.length} questions for topic ${topic.number}`);
 
           if (questions.length > 0) {
             // Create Question objects for this topic
@@ -73,23 +92,45 @@ export class ChallengeService {
 
             await Question.insertMany(questionDocs);
             totalQuestionsCreated += questions.length;
-            console.log(`✅ Generated ${questions.length} questions for topic ${topic.number}`);
+            console.log(`   ✅ Successfully saved ${questions.length} questions for topic ${topic.number}`);
           } else {
-            console.warn(`⚠️ No questions generated for topic ${topic.number} (LLM may not be configured or returned empty)`);
+            console.warn(`   ⚠️ No questions generated for topic ${topic.number} (LLM returned empty array)`);
+            failedTopics++;
           }
         } catch (error: any) {
-          console.error(`❌ Error generating questions for topic ${topic.number}:`, error.message || error);
+          console.error(`   ❌ Error generating questions for topic ${topic.number}:`);
+          console.error(`      Error message: ${error.message || error}`);
+          console.error(`      Error stack: ${error.stack?.substring(0, 200)}...`);
+          failedTopics++;
           // Continue with other topics even if one fails
         }
+        console.log(''); // Empty line for readability
       }
 
+      // Summary
+      console.log('='.repeat(60));
       if (totalQuestionsCreated > 0) {
-        console.log(`✅ Total: Created ${totalQuestionsCreated} questions for challenge ${challengeId}`);
+        console.log(`✅ Successfully created ${totalQuestionsCreated} questions for challenge ${challengeId}`);
+        console.log(`   Topics processed: ${topics.length}`);
+        console.log(`   Topics with questions: ${topics.length - failedTopics}`);
+        console.log(`   Topics failed: ${failedTopics}`);
       } else {
-        console.warn(`⚠️ No questions were created for challenge ${challengeId}. Check LLM configuration.`);
+        console.warn(`⚠️ No questions were created for challenge ${challengeId}`);
+        console.warn(`   Topics processed: ${topics.length}`);
+        console.warn(`   Failed topics: ${failedTopics}`);
+        if (!hasLLMKey) {
+          console.warn(`   Reason: OPENROUTER_API_KEY is not set`);
+        } else {
+          console.warn(`   Reason: LLM did not return any questions (check LLM service logs for details)`);
+        }
       }
+      console.log('='.repeat(60) + '\n');
     } catch (error: any) {
-      console.error('❌ Error generating questions for challenge:', error.message || error);
+      console.error('❌ Error generating questions for challenge:');
+      console.error(`   Challenge ID: ${challengeId}`);
+      console.error(`   Error message: ${error.message || error}`);
+      console.error(`   Error stack: ${error.stack?.substring(0, 300)}...`);
+      
       // If it's a Topics error, throw it up (challenge creation should fail)
       if (error.message?.includes('Topics not found') || error.message?.includes('No topics found')) {
         throw error;

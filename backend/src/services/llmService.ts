@@ -138,14 +138,24 @@ export class LLMService {
     challengeDescription: string,
     topic: { number: number; label: string; description: string }
   ): Promise<string[]> {
+    console.log(`   🔧 LLM Service: Starting question generation for topic ${topic.number}`);
+    console.log(`      API Key status: ${this.apiKey ? `SET (length: ${this.apiKey.length})` : 'NOT SET'}`);
+    console.log(`      Model: ${this.model}`);
+    console.log(`      Base URL: ${this.baseUrl}`);
+    
     if (!this.apiKey) {
-      console.warn('⚠️ OPENROUTER_API_KEY not set. Cannot generate questions.');
+      console.warn(`   ⚠️ OPENROUTER_API_KEY not set. Cannot generate questions for topic ${topic.number}.`);
       return [];
     }
 
     try {
       const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
+      console.log(`   📤 Sending request to LLM...`);
+      console.log(`      Prompt length: ${prompt.length} characters`);
+      console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
+      console.log(`      Topic: ${topic.number} - ${topic.label}`);
 
+      const startTime = Date.now();
       const response = await axios.post(
         this.baseUrl,
         {
@@ -162,50 +172,100 @@ export class LLMService {
         },
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${this.apiKey.substring(0, 10)}...`,
             'Content-Type': 'application/json',
           },
         }
       );
+      const duration = Date.now() - startTime;
+      console.log(`   ⏱️ LLM request completed in ${duration}ms`);
+      console.log(`   📥 Response status: ${response.status}`);
 
       const content = response.data.choices[0]?.message?.content;
       if (!content) {
+        console.error(`   ❌ No content in LLM response`);
+        console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
         throw new Error('No content in LLM response');
       }
 
-      const parsed = JSON.parse(content);
+      console.log(`   📄 Response content length: ${content.length} characters`);
+      console.log(`   📄 Response preview: ${content.substring(0, 100)}...`);
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(content);
+        console.log(`   ✅ Successfully parsed JSON response`);
+      } catch (parseError: any) {
+        console.error(`   ❌ Failed to parse JSON response`);
+        console.error(`      Parse error: ${parseError.message}`);
+        console.error(`      Content preview: ${content.substring(0, 500)}...`);
+        throw new Error(`Failed to parse LLM response as JSON: ${parseError.message}`);
+      }
       
       // Handle different response formats
       let questions: string[] = [];
+      console.log(`   🔍 Parsing response structure...`);
+      console.log(`      Response keys: ${Object.keys(parsed).join(', ')}`);
+      
       if (parsed.questions && Array.isArray(parsed.questions)) {
         questions = parsed.questions;
+        console.log(`   ✅ Found questions in 'questions' array (${questions.length} items)`);
       } else if (parsed.questionList && Array.isArray(parsed.questionList)) {
         questions = parsed.questionList;
+        console.log(`   ✅ Found questions in 'questionList' array (${questions.length} items)`);
       } else if (Array.isArray(parsed)) {
         questions = parsed;
+        console.log(`   ✅ Response is direct array (${questions.length} items)`);
       } else {
         // Try to extract questions from any array in the response
         const values = Object.values(parsed);
         const firstArray = values.find((v) => Array.isArray(v)) as string[] | undefined;
         if (firstArray) {
           questions = firstArray;
+          console.log(`   ✅ Found array in response values (${questions.length} items)`);
+        } else {
+          console.warn(`   ⚠️ No array found in response structure`);
+          console.warn(`      Response structure: ${JSON.stringify(parsed).substring(0, 300)}...`);
         }
       }
 
       // Validate and filter questions
+      const originalCount = questions.length;
       questions = questions
         .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
         .map((q: string) => q.trim())
         .slice(0, 4); // Max 4 questions
 
+      if (originalCount !== questions.length) {
+        console.log(`   🔍 Filtered questions: ${originalCount} → ${questions.length} (removed invalid/empty)`);
+      }
+
       // If we got less than 3 questions, try to generate more or return what we have
       if (questions.length < 3 && questions.length > 0) {
-        console.warn(`⚠️ Generated only ${questions.length} questions for topic ${topic.number}`);
+        console.warn(`   ⚠️ Generated only ${questions.length} questions for topic ${topic.number} (expected 3-4)`);
+      }
+
+      if (questions.length > 0) {
+        console.log(`   ✅ Successfully extracted ${questions.length} questions`);
+        questions.forEach((q, i) => {
+          console.log(`      ${i + 1}. ${q.substring(0, 60)}${q.length > 60 ? '...' : ''}`);
+        });
+      } else {
+        console.warn(`   ⚠️ No valid questions extracted from LLM response`);
       }
 
       return questions.length > 0 ? questions : [];
-    } catch (error) {
-      console.error('LLM Question Generation Error:', error);
+    } catch (error: any) {
+      console.error(`   ❌ LLM Question Generation Error for topic ${topic.number}:`);
+      console.error(`      Error type: ${error.constructor?.name || 'Unknown'}`);
+      console.error(`      Error message: ${error.message || error}`);
+      if (error.response) {
+        console.error(`      Response status: ${error.response.status}`);
+        console.error(`      Response data: ${JSON.stringify(error.response.data).substring(0, 300)}...`);
+      }
+      if (error.stack) {
+        console.error(`      Stack trace: ${error.stack.substring(0, 300)}...`);
+      }
       return [];
     }
   }
