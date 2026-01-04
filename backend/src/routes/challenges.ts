@@ -37,7 +37,13 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
     res.status(201).json(challenge);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    // Provide more helpful error messages
+    if (error.message?.includes('Topics not found') || error.message?.includes('No topics found')) {
+      return res.status(400).json({ 
+        error: error.message || 'Topics not found. Please ensure topics are seeded in the database.' 
+      });
+    }
+    res.status(500).json({ error: error.message || 'Error creating challenge' });
   }
 });
 

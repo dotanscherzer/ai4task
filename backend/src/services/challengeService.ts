@@ -20,16 +20,36 @@ export class ChallengeService {
 
     // Generate questions for each topic
     try {
+      // First, verify Topics exist in DB
+      const allTopicsCount = await Topic.countDocuments();
+      if (allTopicsCount === 0) {
+        console.error('❌ No Topics found in database. Please run seed script first: npm run seed');
+        throw new Error('Topics not found in database. Please run seed script first.');
+      }
+
       // Fetch topics from DB
       const topics = await Topic.find({ number: { $in: data.topicNumbers } });
       
+      if (topics.length === 0) {
+        console.error(`❌ No topics found for numbers: ${data.topicNumbers.join(', ')}`);
+        throw new Error(`No topics found in database for the selected topic numbers. Please run seed script first.`);
+      }
+
       if (topics.length !== data.topicNumbers.length) {
         const foundNumbers = topics.map((t) => t.number);
         const missingNumbers = data.topicNumbers.filter((n) => !foundNumbers.includes(n));
         console.warn(`⚠️ Some topics not found in DB: ${missingNumbers.join(', ')}`);
       }
 
+      // Check if LLM API key is configured
+      const hasLLMKey = !!process.env.OPENROUTER_API_KEY;
+      if (!hasLLMKey) {
+        console.warn('⚠️ OPENROUTER_API_KEY not set. Questions will not be generated automatically.');
+        // Continue - challenge is created, but without questions
+      }
+
       // Generate questions for each topic
+      let totalQuestionsCreated = 0;
       for (const topic of topics) {
         try {
           const questions = await llmService.generateQuestionsForChallenge(
@@ -52,18 +72,29 @@ export class ChallengeService {
             }));
 
             await Question.insertMany(questionDocs);
+            totalQuestionsCreated += questions.length;
             console.log(`✅ Generated ${questions.length} questions for topic ${topic.number}`);
           } else {
-            console.warn(`⚠️ No questions generated for topic ${topic.number}`);
+            console.warn(`⚠️ No questions generated for topic ${topic.number} (LLM may not be configured or returned empty)`);
           }
-        } catch (error) {
-          console.error(`❌ Error generating questions for topic ${topic.number}:`, error);
+        } catch (error: any) {
+          console.error(`❌ Error generating questions for topic ${topic.number}:`, error.message || error);
           // Continue with other topics even if one fails
         }
       }
-    } catch (error) {
-      console.error('❌ Error generating questions for challenge:', error);
-      // Continue even if question generation fails - challenge is already created
+
+      if (totalQuestionsCreated > 0) {
+        console.log(`✅ Total: Created ${totalQuestionsCreated} questions for challenge ${challengeId}`);
+      } else {
+        console.warn(`⚠️ No questions were created for challenge ${challengeId}. Check LLM configuration.`);
+      }
+    } catch (error: any) {
+      console.error('❌ Error generating questions for challenge:', error.message || error);
+      // If it's a Topics error, throw it up (challenge creation should fail)
+      if (error.message?.includes('Topics not found') || error.message?.includes('No topics found')) {
+        throw error;
+      }
+      // Otherwise, continue even if question generation fails - challenge is already created
     }
 
     return challenge.toObject();
