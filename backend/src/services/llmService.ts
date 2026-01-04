@@ -89,6 +89,7 @@ export class LLMService {
           ],
           response_format: { type: 'json_object' },
           temperature: 0.7,
+          max_tokens: 2048, // Limit tokens to reduce costs
         },
         {
           headers: {
@@ -185,6 +186,7 @@ export class LLMService {
           ],
           response_format: { type: 'json_object' },
           temperature: 0.7,
+          max_tokens: 1024, // Limit tokens to reduce costs (enough for 3-4 questions)
         },
         {
           headers: {
