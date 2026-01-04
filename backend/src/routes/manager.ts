@@ -47,19 +47,58 @@ async function findLastQuestionBefore(
   interviewId: mongoose.Types.ObjectId,
   beforeTimestamp: Date | null
 ): Promise<any> {
+  // First, try to find the last original question (not follow-up) before the timestamp
   const query: any = {
     interviewId,
     role: 'bot',
     questionText: { $exists: true, $ne: null },
+    $or: [
+      { isFollowUp: { $ne: true } },
+      { isFollowUp: { $exists: false } }
+    ],
   };
   
   if (beforeTimestamp) {
     query.createdAt = { $lt: beforeTimestamp };
   }
   
-  const lastQuestion = await ChatMessage.findOne(query)
+  let lastQuestion = await ChatMessage.findOne(query)
     .sort({ createdAt: -1 })
     .lean();
+  
+  // Fallback: if no question found with timestamp, try without timestamp (get the most recent question)
+  if (!lastQuestion && beforeTimestamp) {
+    const fallbackQuery: any = {
+      interviewId,
+      role: 'bot',
+      questionText: { $exists: true, $ne: null },
+      $or: [
+        { isFollowUp: { $ne: true } },
+        { isFollowUp: { $exists: false } }
+      ],
+    };
+    
+    lastQuestion = await ChatMessage.findOne(fallbackQuery)
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+  
+  // Final fallback: get any question (including follow-ups) if still nothing found
+  if (!lastQuestion) {
+    const finalQuery: any = {
+      interviewId,
+      role: 'bot',
+      questionText: { $exists: true, $ne: null },
+    };
+    
+    if (beforeTimestamp) {
+      finalQuery.createdAt = { $lt: beforeTimestamp };
+    }
+    
+    lastQuestion = await ChatMessage.findOne(finalQuery)
+      .sort({ createdAt: -1 })
+      .lean();
+  }
   
   return lastQuestion;
 }
@@ -265,13 +304,21 @@ router.post('/message', async (req: Request, res: Response) => {
 
       // Save Answer with skipped=true for the last question
       if (lastBotMessage && lastBotMessage.questionText) {
-        const skippedAnswer = new Answer({
+        // Check if answer already exists to avoid duplicates
+        const existingAnswer = await Answer.findOne({
           interviewId,
-          topicNumber: lastBotMessage.topicNumber || currentTopicState?.topicNumber || interview.selectedTopics[0],
           questionText: lastBotMessage.questionText,
-          skipped: true,
         });
-        await skippedAnswer.save();
+        
+        if (!existingAnswer) {
+          const skippedAnswer = new Answer({
+            interviewId,
+            topicNumber: lastBotMessage.topicNumber || currentTopicState?.topicNumber || interview.selectedTopics[0],
+            questionText: lastBotMessage.questionText,
+            skipped: true,
+          });
+          await skippedAnswer.save();
+        }
 
         // Update session skipped count
         const session = await InterviewSession.findOne({ interviewId });
@@ -542,6 +589,30 @@ router.post('/message', async (req: Request, res: Response) => {
             covered_points: nextTopicState?.coveredPoints || [],
           };
 
+          // IMPORTANT: Save answer BEFORE saving the next bot message
+          // This ensures we find the correct question that was answered
+          if (message) {
+            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+            if (lastQuestion && lastQuestion.questionText) {
+              // Check if answer already exists to avoid duplicates
+              const existingAnswer = await Answer.findOne({
+                interviewId,
+                questionText: lastQuestion.questionText,
+              });
+              
+              if (!existingAnswer) {
+                const answer = new Answer({
+                  interviewId,
+                  topicNumber: lastQuestion.topicNumber || nextTopic,
+                  questionText: lastQuestion.questionText,
+                  answerText: message,
+                  skipped: false,
+                });
+                await answer.save();
+              }
+            }
+          }
+          
           const botMessage = new ChatMessage({
             interviewId,
             role: 'bot',
@@ -550,21 +621,6 @@ router.post('/message', async (req: Request, res: Response) => {
             questionText: nextQuestion.questionText,
           });
           await botMessage.save();
-
-          // Save answer for the previous question (the one that was answered before skip)
-          if (message) {
-            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
-            if (lastQuestion && lastQuestion.questionText) {
-              const answer = new Answer({
-                interviewId,
-                topicNumber: lastQuestion.topicNumber || nextTopic,
-                questionText: lastQuestion.questionText,
-                answerText: message,
-                skipped: false,
-              });
-              await answer.save();
-            }
-          }
         } else {
           // LLM was correct - no more questions
           response = llmResponse;
@@ -656,6 +712,27 @@ router.post('/message', async (req: Request, res: Response) => {
                   covered_points: nextTopicState?.coveredPoints || [],
                 };
 
+                // IMPORTANT: Save answer BEFORE saving the next bot message
+                // This ensures we find the correct question that was answered
+                if (message && lastOriginalQuestion.questionText) {
+                  // Check if answer already exists to avoid duplicates
+                  const existingAnswer = await Answer.findOne({
+                    interviewId,
+                    questionText: lastOriginalQuestion.questionText,
+                  });
+                  
+                  if (!existingAnswer) {
+                    const answer = new Answer({
+                      interviewId,
+                      topicNumber: lastOriginalQuestion.topicNumber || currentTopic,
+                      questionText: lastOriginalQuestion.questionText,
+                      answerText: message,
+                      skipped: false,
+                    });
+                    await answer.save();
+                  }
+                }
+                
                 const botMessage = new ChatMessage({
                   interviewId,
                   role: 'bot',
@@ -664,18 +741,6 @@ router.post('/message', async (req: Request, res: Response) => {
                   questionText: nextQuestion.questionText,
                 });
                 await botMessage.save();
-
-                // Save answer for the previous question (the one that was answered)
-                if (message && lastOriginalQuestion.questionText) {
-                  const answer = new Answer({
-                    interviewId,
-                    topicNumber: lastOriginalQuestion.topicNumber || currentTopic,
-                    questionText: lastOriginalQuestion.questionText,
-                    answerText: message,
-                    skipped: false,
-                  });
-                  await answer.save();
-                }
               } else {
                 // No more questions, use END
                 response = {
@@ -689,6 +754,31 @@ router.post('/message', async (req: Request, res: Response) => {
               }
             } else {
               // No follow-up yet, allow this follow-up
+              
+              // IMPORTANT: Save answer BEFORE saving the follow-up bot message
+              // This ensures we find the correct question that was answered
+              if (message) {
+                const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+                if (lastQuestion && lastQuestion.questionText) {
+                  // Check if answer already exists to avoid duplicates
+                  const existingAnswer = await Answer.findOne({
+                    interviewId,
+                    questionText: lastQuestion.questionText,
+                  });
+                  
+                  if (!existingAnswer) {
+                    const answer = new Answer({
+                      interviewId,
+                      topicNumber: lastQuestion.topicNumber || currentTopic,
+                      questionText: lastQuestion.questionText,
+                      answerText: message,
+                      skipped: false,
+                    });
+                    await answer.save();
+                  }
+                }
+              }
+              
               response = llmResponse;
 
               // Save bot message as follow-up
@@ -724,11 +814,22 @@ router.post('/message', async (req: Request, res: Response) => {
                   await topicStateDoc.save();
                 }
               }
-
-              // Save answer for the question that was answered (could be follow-up or original)
-              if (message) {
-                const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
-                if (lastQuestion && lastQuestion.questionText) {
+            }
+          } else {
+            // No original question found, treat as regular question
+            
+            // IMPORTANT: Save answer BEFORE saving the next bot message
+            // This ensures we find the correct question that was answered
+            if (message) {
+              const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+              if (lastQuestion && lastQuestion.questionText) {
+                // Check if answer already exists to avoid duplicates
+                const existingAnswer = await Answer.findOne({
+                  interviewId,
+                  questionText: lastQuestion.questionText,
+                });
+                
+                if (!existingAnswer) {
                   const answer = new Answer({
                     interviewId,
                     topicNumber: lastQuestion.topicNumber || currentTopic,
@@ -740,8 +841,7 @@ router.post('/message', async (req: Request, res: Response) => {
                 }
               }
             }
-          } else {
-            // No original question found, treat as regular question
+            
             response = llmResponse;
 
             const botMessage = new ChatMessage({
@@ -774,11 +874,22 @@ router.post('/message', async (req: Request, res: Response) => {
                 await topicStateDoc.save();
               }
             }
-
-            // Save answer if provided - find the last question asked before the user answered
-            if (message) {
-              const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
-              if (lastQuestion && lastQuestion.questionText) {
+          }
+        } else {
+          // Not a FOLLOW_UP, use LLM response as-is
+          
+          // IMPORTANT: Save answer BEFORE saving the next bot message
+          // This ensures we find the correct question that was answered
+          if (message) {
+            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+            if (lastQuestion && lastQuestion.questionText) {
+              // Check if answer already exists to avoid duplicates
+              const existingAnswer = await Answer.findOne({
+                interviewId,
+                questionText: lastQuestion.questionText,
+              });
+              
+              if (!existingAnswer) {
                 const answer = new Answer({
                   interviewId,
                   topicNumber: lastQuestion.topicNumber || currentTopic,
@@ -790,8 +901,7 @@ router.post('/message', async (req: Request, res: Response) => {
               }
             }
           }
-        } else {
-          // Not a FOLLOW_UP, use LLM response as-is
+          
           response = llmResponse;
 
           // Save bot message
@@ -823,21 +933,6 @@ router.post('/message', async (req: Request, res: Response) => {
                 ];
               }
               await topicStateDoc.save();
-            }
-          }
-
-          // Save answer if provided - find the last question asked before the user answered
-          if (message) {
-            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
-            if (lastQuestion && lastQuestion.questionText) {
-              const answer = new Answer({
-                interviewId,
-                topicNumber: lastQuestion.topicNumber || currentTopic,
-                questionText: lastQuestion.questionText,
-                answerText: message,
-                skipped: false,
-              });
-              await answer.save();
             }
           }
         }
@@ -879,6 +974,30 @@ router.post('/message', async (req: Request, res: Response) => {
           covered_points: nextTopicState?.coveredPoints || [],
         };
 
+        // IMPORTANT: Save answer BEFORE saving the next bot message
+        // This ensures we find the correct question that was answered
+        if (message) {
+          const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+          if (lastQuestion && lastQuestion.questionText) {
+            // Check if answer already exists to avoid duplicates
+            const existingAnswer = await Answer.findOne({
+              interviewId,
+              questionText: lastQuestion.questionText,
+            });
+            
+            if (!existingAnswer) {
+              const answer = new Answer({
+                interviewId,
+                topicNumber: lastQuestion.topicNumber || nextTopic,
+                questionText: lastQuestion.questionText,
+                answerText: message,
+                skipped: false,
+              });
+              await answer.save();
+            }
+          }
+        }
+        
         const botMessage = new ChatMessage({
           interviewId,
           role: 'bot',
@@ -887,21 +1006,6 @@ router.post('/message', async (req: Request, res: Response) => {
           questionText: nextQuestion.questionText,
         });
         await botMessage.save();
-
-        // Save answer for the previous question (the one that was answered)
-        if (message) {
-          const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
-          if (lastQuestion && lastQuestion.questionText) {
-            const answer = new Answer({
-              interviewId,
-              topicNumber: lastQuestion.topicNumber || nextTopic,
-              questionText: lastQuestion.questionText,
-              answerText: message,
-              skipped: false,
-            });
-            await answer.save();
-          }
-        }
 
         // Update confidence in fallback mode based on number of answers
         if (nextTopicState) {

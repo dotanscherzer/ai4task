@@ -138,7 +138,9 @@ const ManagerChat = () => {
       עצור: 'pause',
     };
 
-    handleSendMessage('', actionMap[action] || 'answer');
+    // Send the quick reply text as the message, not empty string
+    // This ensures the answer is saved properly
+    handleSendMessage(action, actionMap[action] || 'answer');
   };
 
   const handleComplete = async () => {
