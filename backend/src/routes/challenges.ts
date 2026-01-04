@@ -102,5 +102,84 @@ router.get('/:id/topics', async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Questions management routes
+router.get('/:id/questions', async (req: AuthRequest, res: Response) => {
+  try {
+    const challenge = await challengeService.getChallengeById(req.params.id);
+    if (!challenge) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    const questions = await challengeService.getChallengeQuestions(req.params.id);
+    res.json(questions);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/:id/questions', async (req: AuthRequest, res: Response) => {
+  try {
+    const { topicNumber, questionText } = req.body;
+
+    if (!topicNumber || !questionText) {
+      return res.status(400).json({ error: 'topicNumber and questionText are required' });
+    }
+
+    const question = await challengeService.createQuestion(req.params.id, {
+      topicNumber,
+      questionText,
+    });
+
+    if (!question) {
+      return res.status(404).json({ error: 'Challenge not found' });
+    }
+
+    res.status(201).json(question);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/:id/questions/:questionId', async (req: AuthRequest, res: Response) => {
+  try {
+    const { questionText } = req.body;
+
+    if (!questionText) {
+      return res.status(400).json({ error: 'questionText is required' });
+    }
+
+    const question = await challengeService.updateQuestion(
+      req.params.id,
+      req.params.questionId,
+      questionText
+    );
+
+    if (!question) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    res.json(question);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/:id/questions/:questionId', async (req: AuthRequest, res: Response) => {
+  try {
+    const deleted = await challengeService.deleteQuestion(
+      req.params.id,
+      req.params.questionId
+    );
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { connectDatabase } from '../config/database';
 import { Question } from '../models/Question';
+import { Topic } from '../models/Topic';
 
 dotenv.config();
 
@@ -56,9 +57,62 @@ const defaultQuestions = [
   { topicNumber: 8, questionText: 'אילו תוצרים חייבים לצאת מהפירוק כדי שכל הגורמים יבטחו בו?', isDefault: true },
 ];
 
+const topics = [
+  { 
+    number: 1, 
+    label: 'תיאור האתגר והכאב המרכזי',
+    description: 'שאלות על איפה בדיוק "כואב" בפירוק HLD, איך האתגר מתבטא בשטח ולמה זה קורה'
+  },
+  { 
+    number: 2, 
+    label: 'השפעה עסקית ומיקודים ארגוניים',
+    description: 'שאלות על מיקודים עסקיים שנפגעים, הפגיעות המשמעותיות והעלות העסקית של פירוק לא טוב'
+  },
+  { 
+    number: 3, 
+    label: 'קהל יעד, היקף ותלותים',
+    description: 'שאלות על צרכני הפירוק, היקף המדורים, תדירות, סוגי פרויקטים בעייתיים וצווארי בקבוק'
+  },
+  { 
+    number: 4, 
+    label: 'מדדים (KPI) והשפעה מדידה',
+    description: 'שאלות על מדדים שנפגעים בפועל ויעדי השיפור הרצויים'
+  },
+  { 
+    number: 5, 
+    label: 'מה נחשב הצלחה (ללא קשר ל-AI)',
+    description: 'שאלות על Definition of Ready, המינימום המספיק, גרנולריות וקריטריוני אישור'
+  },
+  { 
+    number: 6, 
+    label: 'דאטה, כלים ותשתית תומכת',
+    description: 'שאלות על כלי Backlog, שמירת HLD, תבניות, אוצר מילים אחיד ומגבלות מידע'
+  },
+  { 
+    number: 7, 
+    label: 'מורכבות, סיכונים ושינוי ארגוני',
+    description: 'שאלות על Audit Trail, אחידות בין מדורים, Scope Churn, תלויות חיצוניות והתנגדות ארגונית'
+  },
+  { 
+    number: 8, 
+    label: 'Best Practices וצעדי המשך',
+    description: 'שאלות על Best Practices, פיילוט, תבניות אחידות, Workflow של Review/Approval ותוצרים נדרשים'
+  },
+];
+
 async function seed() {
   try {
     await connectDatabase();
+
+    // Seed topics (upsert to avoid duplicates)
+    for (const topic of topics) {
+      await Topic.findOneAndUpdate(
+        { number: topic.number },
+        { $set: topic },
+        { upsert: true, new: true }
+      );
+    }
+    console.log(`✅ Seeded ${topics.length} topics`);
 
     // Clear existing questions
     await Question.deleteMany({});

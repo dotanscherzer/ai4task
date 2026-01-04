@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { challengesAPI } from '../services/api';
 import { Challenge } from '../types';
+import ChallengeQuestionsModal from '../components/ChallengeQuestionsModal';
 import './ChallengeManagement.css';
 
 const TOPICS = [
@@ -54,6 +55,7 @@ const ChallengeManagement = () => {
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
+  const [selectedChallengeForQuestions, setSelectedChallengeForQuestions] = useState<Challenge | null>(null);
   
   // Form state
   const [formName, setFormName] = useState('');
@@ -185,6 +187,12 @@ const ChallengeManagement = () => {
                     <h3>{challenge.name}</h3>
                     <div className="challenge-actions">
                       <button
+                        onClick={() => setSelectedChallengeForQuestions(challenge)}
+                        className="btn-questions"
+                      >
+                        ניהול שאלות
+                      </button>
+                      <button
                         onClick={() => handleEdit(challenge)}
                         className="btn-edit"
                       >
@@ -289,6 +297,13 @@ const ChallengeManagement = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {selectedChallengeForQuestions && (
+        <ChallengeQuestionsModal
+          challenge={selectedChallengeForQuestions}
+          onClose={() => setSelectedChallengeForQuestions(null)}
+        />
       )}
     </div>
   );

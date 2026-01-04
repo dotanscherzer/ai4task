@@ -69,6 +69,25 @@ export const challengesAPI = {
     const response = await api.get(`/challenges/${id}/topics`);
     return response.data;
   },
+  getQuestions: async (id: string) => {
+    const response = await api.get(`/challenges/${id}/questions`);
+    return response.data;
+  },
+  createQuestion: async (id: string, data: {
+    topicNumber: number;
+    questionText: string;
+  }) => {
+    const response = await api.post(`/challenges/${id}/questions`, data);
+    return response.data;
+  },
+  updateQuestion: async (id: string, questionId: string, questionText: string) => {
+    const response = await api.put(`/challenges/${id}/questions/${questionId}`, { questionText });
+    return response.data;
+  },
+  deleteQuestion: async (id: string, questionId: string) => {
+    const response = await api.delete(`/challenges/${id}/questions/${questionId}`);
+    return response.data;
+  },
 };
 
 // Interviews API

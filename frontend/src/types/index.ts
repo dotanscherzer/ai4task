@@ -19,3 +19,13 @@ export interface Interview {
   createdAt: string;
 }
 
+export interface Question {
+  _id: string;
+  topicNumber: number;
+  questionText: string;
+  isDefault: boolean;
+  challengeId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
