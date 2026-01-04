@@ -53,9 +53,19 @@ const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = fa
   const answers = details?.answers || [];
   const topicStates = details?.topicStates || [];
 
+  // Remove duplicates - keep only the first answer for each question
+  const uniqueAnswers = new Map<string, any>();
+  answers.forEach((answer: any) => {
+    const key = `${answer.topicNumber}-${answer.questionText}`;
+    if (!uniqueAnswers.has(key)) {
+      uniqueAnswers.set(key, answer);
+    }
+  });
+  const deduplicatedAnswers = Array.from(uniqueAnswers.values());
+
   // Group answers by topic
   const answersByTopic = new Map<number, any[]>();
-  answers.forEach((answer: any) => {
+  deduplicatedAnswers.forEach((answer: any) => {
     if (!answersByTopic.has(answer.topicNumber)) {
       answersByTopic.set(answer.topicNumber, []);
     }
@@ -180,7 +190,7 @@ const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = fa
                 ))}
               </div>
             ))}
-            {answers.length === 0 && (
+            {deduplicatedAnswers.length === 0 && (
               <div className="empty-state">אין תשובות עדיין</div>
             )}
           </div>

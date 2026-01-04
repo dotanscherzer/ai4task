@@ -130,8 +130,15 @@ router.post('/state', async (req: Request, res: Response) => {
 
     // Get answers for progress
     const answers = await Answer.find({ interviewId }).lean();
-    const answered = answers.filter((a) => !a.skipped).length;
-    const skipped = answers.filter((a) => a.skipped).length;
+    // Count unique questions (to avoid counting duplicates)
+    const uniqueAnsweredQuestions = new Set(
+      answers.filter((a) => !a.skipped).map((a) => a.questionText)
+    );
+    const uniqueSkippedQuestions = new Set(
+      answers.filter((a) => a.skipped).map((a) => a.questionText)
+    );
+    const answered = uniqueAnsweredQuestions.size;
+    const skipped = uniqueSkippedQuestions.size;
     
     // Calculate total enabled questions for selected topics
     const totalQuestions = questions.filter(
@@ -401,8 +408,15 @@ router.post('/message', async (req: Request, res: Response) => {
 
         // Calculate progress
         const skipAnswers = await Answer.find({ interviewId }).lean();
-        const skipAnswered = skipAnswers.filter((a) => !a.skipped).length;
-        const skipSkipped = skipAnswers.filter((a) => a.skipped).length;
+        // Count unique questions (to avoid counting duplicates)
+        const uniqueSkipAnsweredQuestions = new Set(
+          skipAnswers.filter((a) => !a.skipped).map((a) => a.questionText)
+        );
+        const uniqueSkipSkippedQuestions = new Set(
+          skipAnswers.filter((a) => a.skipped).map((a) => a.questionText)
+        );
+        const skipAnswered = uniqueSkipAnsweredQuestions.size;
+        const skipSkipped = uniqueSkipSkippedQuestions.size;
         const skipTotalQuestions = questions.filter(
           (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
         ).length;
@@ -428,8 +442,15 @@ router.post('/message', async (req: Request, res: Response) => {
         
         // Calculate progress for end response
         const endAnswers = await Answer.find({ interviewId }).lean();
-        const endAnswered = endAnswers.filter((a) => !a.skipped).length;
-        const endSkipped = endAnswers.filter((a) => a.skipped).length;
+        // Count unique questions (to avoid counting duplicates)
+        const uniqueEndAnsweredQuestions = new Set(
+          endAnswers.filter((a) => !a.skipped).map((a) => a.questionText)
+        );
+        const uniqueEndSkippedQuestions = new Set(
+          endAnswers.filter((a) => a.skipped).map((a) => a.questionText)
+        );
+        const endAnswered = uniqueEndAnsweredQuestions.size;
+        const endSkipped = uniqueEndSkippedQuestions.size;
         const endTotalQuestions = questions.filter(
           (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
         ).length;
@@ -1043,6 +1064,29 @@ router.post('/message', async (req: Request, res: Response) => {
           }
         }
       } else {
+        // No more questions - save the last answer before ending
+        if (message) {
+          const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+          if (lastQuestion && lastQuestion.questionText) {
+            // Check if answer already exists to avoid duplicates
+            const existingAnswer = await Answer.findOne({
+              interviewId,
+              questionText: lastQuestion.questionText,
+            });
+            
+            if (!existingAnswer) {
+              const answer = new Answer({
+                interviewId,
+                topicNumber: lastQuestion.topicNumber || currentTopic,
+                questionText: lastQuestion.questionText,
+                answerText: message,
+                skipped: false,
+              });
+              await answer.save();
+            }
+          }
+        }
+        
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:409',message:'No questions in any topic - ending interview',data:{currentTopic,allTopics:interview.selectedTopics,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,totalQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length,askedQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>askedQuestions.includes(q.questionText)).length,remainingQuestions:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).filter((q:any)=>!askedQuestions.includes(q.questionText)).length})),willEnd:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
         // #endregion
@@ -1086,8 +1130,15 @@ router.post('/message', async (req: Request, res: Response) => {
     }
 
     // Calculate progress for response
-    const answered = answers.filter((a) => !a.skipped).length;
-    const skipped = answers.filter((a) => a.skipped).length;
+    // Count unique questions (to avoid counting duplicates)
+    const uniqueAnsweredQuestions = new Set(
+      answers.filter((a) => !a.skipped).map((a) => a.questionText)
+    );
+    const uniqueSkippedQuestions = new Set(
+      answers.filter((a) => a.skipped).map((a) => a.questionText)
+    );
+    const answered = uniqueAnsweredQuestions.size;
+    const skipped = uniqueSkippedQuestions.size;
     const totalQuestions = questions.filter(
       (q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled
     ).length;

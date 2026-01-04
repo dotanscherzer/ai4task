@@ -1,26 +1,29 @@
 .quick-replies {
   display: flex;
-  gap: 6px;
-  padding: 12px 20px;
+  gap: 4px;
+  padding: 8px 12px;
   background: white;
   border-top: 1px solid #e0e0e0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: center;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .quick-reply-btn {
-  padding: 4px 10px;
+  padding: 3px 8px;
   background: #f8f9fa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   color: #333;
   font-weight: 500;
   transition: all 0.2s;
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .quick-reply-btn:hover:not(:disabled) {
