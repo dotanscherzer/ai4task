@@ -6,6 +6,8 @@ export interface IChatMessage extends Document {
   content: string;
   topicNumber?: number;
   questionText?: string;
+  isFollowUp?: boolean;
+  originalQuestionText?: string;
   meta?: {
     action?: string;
     model?: string;
@@ -33,6 +35,8 @@ const ChatMessageSchema = new Schema<IChatMessage>(
     content: { type: String, required: true },
     topicNumber: { type: Number, required: false },
     questionText: { type: String, required: false },
+    isFollowUp: { type: Boolean, required: false, default: false },
+    originalQuestionText: { type: String, required: false },
     meta: { type: Schema.Types.Mixed, required: false },
   },
   {

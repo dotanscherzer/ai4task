@@ -6,6 +6,7 @@ import { TopicState } from '../models/TopicState';
 import { InterviewSession } from '../models/InterviewSession';
 import { llmService } from '../services/llmService';
 import { emailService } from '../services/emailService';
+import { Challenge } from '../models/Challenge';
 import mongoose from 'mongoose';
 
 const router = express.Router();
@@ -114,16 +115,36 @@ router.post('/state', async (req: Request, res: Response) => {
     );
     const nextQuestion = remainingQuestions[0];
 
-    // If no messages exist and there's a first question, create a bot message for it
+    // If no messages exist and there's a first question, create opening message
     if (recentMessages.length === 0 && nextQuestion) {
-      const firstBotMessage = new ChatMessage({
+      // Build opening message with challenge description
+      let openingContent = `שלום ${interview.managerName},\n\n`;
+      
+      // Add challenge description if challengeId exists
+      if (interview.challengeId) {
+        const challenge = await Challenge.findById(interview.challengeId).lean();
+        if (challenge && challenge.description) {
+          openingContent += `האתגר שבו נעסוק הוא: ${challenge.description}\n\n`;
+        }
+      }
+      
+      // Add goal explanation
+      openingContent += `המטרה שלנו היא לאסוף מידע מפורט על האתגר כדי לבנות מפת אתגר מקיפה. `;
+      openingContent += `אני אשאל אותך מספר שאלות, ואתה יכול לענות בפירוט או לדלג על שאלות שאינן רלוונטיות.\n\n`;
+      openingContent += `בואו נתחיל:\n\n`;
+      
+      // Add first question
+      openingContent += nextQuestion.questionText;
+      
+      // Create opening message
+      const openingMessage = new ChatMessage({
         interviewId,
         role: 'bot',
-        content: nextQuestion.questionText,
+        content: openingContent,
         topicNumber: currentTopic,
         questionText: nextQuestion.questionText,
       });
-      await firstBotMessage.save();
+      await openingMessage.save();
       
       // Reload recent messages to include the new one
       const updatedMessages = await ChatMessage.find({
@@ -553,50 +574,235 @@ router.post('/message', async (req: Request, res: Response) => {
         }
       } else {
         // Use LLM response (ASK, FOLLOW_UP, TOPIC_WRAP)
-        response = llmResponse;
-
-        // Save bot message
-        const botMessage = new ChatMessage({
-          interviewId,
-          role: 'bot',
-          content: llmResponse.bot_message,
-          topicNumber: llmResponse.topic_number,
-          questionText: llmResponse.next_question_text,
-          meta: {
-            action: llmResponse.next_action,
-            topicConfidence: llmResponse.topic_confidence,
-            coveredQuestions: llmResponse.mark_questions_covered,
-          },
-        });
-        await botMessage.save();
-
-        // Update topic state
-        if (currentTopicState) {
-          const topicStateDoc = await TopicState.findOne({
+        // Handle FOLLOW_UP: check if follow-up already asked for last question
+        if (llmResponse.next_action === 'FOLLOW_UP') {
+          // Find the last original question (not a follow-up)
+          const lastOriginalQuestion = await ChatMessage.findOne({
             interviewId,
-            topicNumber: currentTopicState.topicNumber,
-          });
-          if (topicStateDoc) {
-            topicStateDoc.confidence = llmResponse.topic_confidence;
-            if (llmResponse.covered_points.length > 0) {
-              topicStateDoc.coveredPoints = [
-                ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-              ];
+            role: 'bot',
+            questionText: { $exists: true, $ne: null },
+            isFollowUp: { $ne: true },
+          })
+            .sort({ createdAt: -1 })
+            .lean();
+
+          if (lastOriginalQuestion && lastOriginalQuestion.questionText) {
+            // Check if a follow-up was already asked for this question
+            const existingFollowUp = await ChatMessage.findOne({
+              interviewId,
+              role: 'bot',
+              isFollowUp: true,
+              originalQuestionText: lastOriginalQuestion.questionText,
+            }).lean();
+
+            if (existingFollowUp) {
+              // Follow-up already asked, move to next question instead
+              let nextQuestion = remainingQuestions[0];
+              let nextTopic = currentTopic;
+              let nextTopicState = currentTopicState;
+
+              // If no questions in current topic, check other topics
+              if (!nextQuestion) {
+                const nextTopicResult = findNextTopicWithQuestions(
+                  currentTopic,
+                  interview.selectedTopics,
+                  questions,
+                  askedQuestions
+                );
+                
+                if (nextTopicResult) {
+                  nextQuestion = nextTopicResult.question;
+                  nextTopic = nextTopicResult.topic;
+                  nextTopicState = topicStates.find((ts: any) => ts.topicNumber === nextTopic);
+                }
+              }
+
+              if (nextQuestion) {
+                response = {
+                  bot_message: nextQuestion.questionText,
+                  next_action: 'ASK',
+                  topic_number: nextTopic,
+                  next_question_text: nextQuestion.questionText,
+                  quick_replies: ['המשך', 'דלג', 'לא יודע', 'עצור'],
+                  topic_confidence: nextTopicState?.confidence || 0,
+                  covered_points: nextTopicState?.coveredPoints || [],
+                };
+
+                const botMessage = new ChatMessage({
+                  interviewId,
+                  role: 'bot',
+                  content: nextQuestion.questionText,
+                  topicNumber: nextTopic,
+                  questionText: nextQuestion.questionText,
+                });
+                await botMessage.save();
+
+                // Save answer for the previous question (the one that was answered)
+                if (message && lastOriginalQuestion.questionText) {
+                  const answer = new Answer({
+                    interviewId,
+                    topicNumber: lastOriginalQuestion.topicNumber || currentTopic,
+                    questionText: lastOriginalQuestion.questionText,
+                    answerText: message,
+                    skipped: false,
+                  });
+                  await answer.save();
+                }
+              } else {
+                // No more questions, use END
+                response = {
+                  bot_message: 'סיימנו את כל השאלות. תודה!',
+                  next_action: 'END',
+                  topic_number: currentTopic,
+                  quick_replies: [],
+                  topic_confidence: 1,
+                  covered_points: [],
+                };
+              }
+            } else {
+              // No follow-up yet, allow this follow-up
+              response = llmResponse;
+
+              // Save bot message as follow-up
+              const botMessage = new ChatMessage({
+                interviewId,
+                role: 'bot',
+                content: llmResponse.bot_message,
+                topicNumber: llmResponse.topic_number,
+                questionText: llmResponse.next_question_text,
+                isFollowUp: true,
+                originalQuestionText: lastOriginalQuestion.questionText,
+                meta: {
+                  action: llmResponse.next_action,
+                  topicConfidence: llmResponse.topic_confidence,
+                  coveredQuestions: llmResponse.mark_questions_covered,
+                },
+              });
+              await botMessage.save();
+
+              // Update topic state
+              if (currentTopicState) {
+                const topicStateDoc = await TopicState.findOne({
+                  interviewId,
+                  topicNumber: currentTopicState.topicNumber,
+                });
+                if (topicStateDoc) {
+                  topicStateDoc.confidence = llmResponse.topic_confidence;
+                  if (llmResponse.covered_points.length > 0) {
+                    topicStateDoc.coveredPoints = [
+                      ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+                    ];
+                  }
+                  await topicStateDoc.save();
+                }
+              }
+
+              // Save answer for the original question if provided
+              if (message && lastOriginalQuestion.questionText) {
+                const answer = new Answer({
+                  interviewId,
+                  topicNumber: lastOriginalQuestion.topicNumber || currentTopic,
+                  questionText: lastOriginalQuestion.questionText,
+                  answerText: message,
+                  skipped: false,
+                });
+                await answer.save();
+              }
             }
-            await topicStateDoc.save();
-          }
-        }
+          } else {
+            // No original question found, treat as regular question
+            response = llmResponse;
 
-        // Save answer if provided
-        if (message && llmResponse.next_question_text) {
-          const answer = new Answer({
+            const botMessage = new ChatMessage({
+              interviewId,
+              role: 'bot',
+              content: llmResponse.bot_message,
+              topicNumber: llmResponse.topic_number,
+              questionText: llmResponse.next_question_text,
+              meta: {
+                action: llmResponse.next_action,
+                topicConfidence: llmResponse.topic_confidence,
+                coveredQuestions: llmResponse.mark_questions_covered,
+              },
+            });
+            await botMessage.save();
+
+            // Update topic state
+            if (currentTopicState) {
+              const topicStateDoc = await TopicState.findOne({
+                interviewId,
+                topicNumber: currentTopicState.topicNumber,
+              });
+              if (topicStateDoc) {
+                topicStateDoc.confidence = llmResponse.topic_confidence;
+                if (llmResponse.covered_points.length > 0) {
+                  topicStateDoc.coveredPoints = [
+                    ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+                  ];
+                }
+                await topicStateDoc.save();
+              }
+            }
+
+            // Save answer if provided
+            if (message && llmResponse.next_question_text) {
+              const answer = new Answer({
+                interviewId,
+                topicNumber: currentTopic,
+                questionText: llmResponse.next_question_text,
+                answerText: message,
+                skipped: false,
+              });
+              await answer.save();
+            }
+          }
+        } else {
+          // Not a FOLLOW_UP, use LLM response as-is
+          response = llmResponse;
+
+          // Save bot message
+          const botMessage = new ChatMessage({
             interviewId,
-            topicNumber: currentTopic,
+            role: 'bot',
+            content: llmResponse.bot_message,
+            topicNumber: llmResponse.topic_number,
             questionText: llmResponse.next_question_text,
-            answerText: message,
-            skipped: false,
+            meta: {
+              action: llmResponse.next_action,
+              topicConfidence: llmResponse.topic_confidence,
+              coveredQuestions: llmResponse.mark_questions_covered,
+            },
           });
-          await answer.save();
+          await botMessage.save();
+
+          // Update topic state
+          if (currentTopicState) {
+            const topicStateDoc = await TopicState.findOne({
+              interviewId,
+              topicNumber: currentTopicState.topicNumber,
+            });
+            if (topicStateDoc) {
+              topicStateDoc.confidence = llmResponse.topic_confidence;
+              if (llmResponse.covered_points.length > 0) {
+                topicStateDoc.coveredPoints = [
+                  ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
+                ];
+              }
+              await topicStateDoc.save();
+            }
+          }
+
+          // Save answer if provided
+          if (message && llmResponse.next_question_text) {
+            const answer = new Answer({
+              interviewId,
+              topicNumber: currentTopic,
+              questionText: llmResponse.next_question_text,
+              answerText: message,
+              skipped: false,
+            });
+            await answer.save();
+          }
         }
       }
     } else {

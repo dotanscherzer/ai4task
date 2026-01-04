@@ -84,7 +84,8 @@ export class InterviewService {
   }
 
   async getInterviewByToken(shareToken: string): Promise<any> {
-    const interview = await Interview.findOne({ shareToken });
+    const interview = await Interview.findOne({ shareToken })
+      .populate('challengeId', 'name description');
     if (!interview) {
       return null;
     }

@@ -217,7 +217,59 @@ export class EmailService {
     </div>
 `;
 
-    // Group answers by topic
+    // Get all bot messages that are questions (including follow-ups)
+    const questionMessages = messages.filter((msg: any) => 
+      msg.role === 'bot' && msg.questionText
+    );
+
+    // Create a map of questions with their follow-ups and answers
+    const questionsWithFollowUps = new Map<string, {
+      question: any;
+      followUps: any[];
+      answer?: any;
+    }>();
+
+    // First, add all original questions (not follow-ups)
+    questionMessages.forEach((msg: any) => {
+      if (!msg.isFollowUp && msg.questionText) {
+        const answer = answers.find((a: any) => a.questionText === msg.questionText);
+        questionsWithFollowUps.set(msg.questionText, {
+          question: msg,
+          followUps: [],
+          answer,
+        });
+      }
+    });
+
+    // Then, add follow-ups to their original questions
+    questionMessages.forEach((msg: any) => {
+      if (msg.isFollowUp && msg.originalQuestionText) {
+        const original = questionsWithFollowUps.get(msg.originalQuestionText);
+        if (original) {
+          const followUpAnswer = answers.find((a: any) => a.questionText === msg.questionText);
+          original.followUps.push({
+            question: msg,
+            answer: followUpAnswer,
+          });
+        }
+      }
+    });
+
+    // Group questions by topic for display
+    const questionsByTopic = new Map<number, Array<{
+      question: any;
+      followUps: any[];
+      answer?: any;
+    }>>();
+    questionsWithFollowUps.forEach((qData) => {
+      const topicNum = qData.question.topicNumber;
+      if (!questionsByTopic.has(topicNum)) {
+        questionsByTopic.set(topicNum, []);
+      }
+      questionsByTopic.get(topicNum)!.push(qData);
+    });
+
+    // Group answers by topic (for backward compatibility)
     const answersByTopic = new Map<number, any[]>();
     answers.forEach((answer) => {
       if (!answersByTopic.has(answer.topicNumber)) {
@@ -234,11 +286,11 @@ export class EmailService {
 
     // Generate challenge map if challenge exists
     if (challenge) {
-      html += this.generateChallengeMap(challenge, topicStatesByNumber, answersByTopic, boxTitles);
+      html += this.generateChallengeMap(challenge, topicStatesByNumber, answersByTopic, boxTitles, questionsByTopic);
     } else {
       // Fallback: Generate topic sections without challenge map
       topicStates.forEach((topicState) => {
-        const topicAnswers = answersByTopic.get(topicState.topicNumber) || [];
+        const topicQuestions = questionsByTopic.get(topicState.topicNumber) || [];
         html += `
     <div class="topic-section">
       <h2>נושא ${topicState.topicNumber}</h2>
@@ -252,16 +304,45 @@ export class EmailService {
       ` : ''}
 
       <h3>שאלות ותשובות:</h3>
-      ${topicAnswers.length > 0 ? topicAnswers.map((answer: any) => `
+      ${topicQuestions.length > 0 ? topicQuestions.map((qData: any) => {
+        let qaHtml = `
       <div class="qa-card">
-        <div class="question">${answer.questionText}</div>
-        ${answer.skipped ? (
-          '<div class="skipped">דולג</div>'
-        ) : (
-          `<div class="answer">${answer.answerText || 'ללא תשובה'}</div>`
-        )}
-      </div>
-      `).join('') : '<p>אין תשובות בנושא זה</p>'}
+        <div class="question">${qData.question.questionText}</div>`;
+        
+        if (qData.answer) {
+          if (qData.answer.skipped) {
+            qaHtml += '<div class="skipped">דולג</div>';
+          } else {
+            qaHtml += `<div class="answer">${qData.answer.answerText || 'ללא תשובה'}</div>`;
+          }
+        } else {
+          qaHtml += '<div class="skipped">ללא תשובה</div>';
+        }
+        
+        // Add follow-up questions
+        if (qData.followUps.length > 0) {
+          qData.followUps.forEach((followUp: any) => {
+            qaHtml += `
+        <div class="qa-card" style="margin-right: 20px; margin-top: 10px; border-right: 3px solid #667eea;">
+          <div class="question" style="font-size: 12px; color: #667eea;">
+            <strong>שאלת המשך:</strong> ${followUp.question.questionText}
+          </div>`;
+            if (followUp.answer) {
+              if (followUp.answer.skipped) {
+                qaHtml += '<div class="skipped" style="font-size: 11px;">דולג</div>';
+              } else {
+                qaHtml += `<div class="answer" style="font-size: 11px;">${followUp.answer.answerText || 'ללא תשובה'}</div>`;
+              }
+            } else {
+              qaHtml += '<div class="skipped" style="font-size: 11px;">ללא תשובה</div>';
+            }
+            qaHtml += `</div>`;
+          });
+        }
+        
+        qaHtml += `</div>`;
+        return qaHtml;
+      }).join('') : '<p>אין תשובות בנושא זה</p>'}
     </div>
 `;
       });
@@ -315,7 +396,12 @@ export class EmailService {
     challenge: any,
     topicStatesByNumber: Map<number, any>,
     answersByTopic: Map<number, any[]>,
-    boxTitles: string[]
+    boxTitles: string[],
+    questionsByTopic?: Map<number, Array<{
+      question: any;
+      followUps: any[];
+      answer?: any;
+    }>>
   ): string {
     let html = `
     <div class="challenge-section">
@@ -347,6 +433,7 @@ export class EmailService {
         const topicNumber = boxIndex + 1; // Topics are 1-indexed
         const topicState = topicStatesByNumber.get(topicNumber);
         const topicAnswers = answersByTopic.get(topicNumber) || [];
+        const topicQuestions = questionsByTopic?.get(topicNumber) || [];
         const boxTitle = boxTitles[boxIndex];
 
         html += `          <td class="challenge-box" style="width: 25%; padding: 15px; border: 2px solid #0066cc; vertical-align: top; background: white;">
@@ -372,7 +459,50 @@ export class EmailService {
               </div>`;
           }
 
-          if (topicAnswers.length > 0) {
+          // Use questionsByTopic if available, otherwise fall back to answersByTopic
+          if (topicQuestions.length > 0) {
+            html += `
+              <div>
+                <strong>שאלות ותשובות:</strong>`;
+            topicQuestions.forEach((qData: any) => {
+              html += `
+                <div class="qa-item">
+                  <div class="qa-question">${qData.question.questionText}</div>`;
+              if (qData.answer) {
+                if (qData.answer.skipped) {
+                  html += `<div class="qa-skipped">דולג</div>`;
+                } else {
+                  html += `<div class="qa-answer">${qData.answer.answerText || 'ללא תשובה'}</div>`;
+                }
+              } else {
+                html += `<div class="qa-skipped">ללא תשובה</div>`;
+              }
+              html += `</div>`;
+              
+              // Add follow-up questions
+              if (qData.followUps.length > 0) {
+                qData.followUps.forEach((followUp: any) => {
+                  html += `
+                <div class="qa-item" style="margin-right: 15px; border-right: 2px solid #667eea;">
+                  <div class="qa-question" style="font-size: 11px; color: #667eea;">
+                    <strong>שאלת המשך:</strong> ${followUp.question.questionText}
+                  </div>`;
+                  if (followUp.answer) {
+                    if (followUp.answer.skipped) {
+                      html += `<div class="qa-skipped" style="font-size: 10px;">דולג</div>`;
+                    } else {
+                      html += `<div class="qa-answer" style="font-size: 10px;">${followUp.answer.answerText || 'ללא תשובה'}</div>`;
+                    }
+                  } else {
+                    html += `<div class="qa-skipped" style="font-size: 10px;">ללא תשובה</div>`;
+                  }
+                  html += `</div>`;
+                });
+              }
+            });
+            html += `</div>`;
+          } else if (topicAnswers.length > 0) {
+            // Fallback to old method if questionsByTopic is not available
             html += `
               <div>
                 <strong>שאלות ותשובות:</strong>`;
