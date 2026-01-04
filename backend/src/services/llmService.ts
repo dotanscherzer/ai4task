@@ -49,11 +49,21 @@ export class LLMService {
   private baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY || '';
+    const rawKey = process.env.OPENROUTER_API_KEY || '';
+    this.apiKey = rawKey.trim();
     this.model = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
 
     if (!this.apiKey) {
       console.warn('⚠️ OPENROUTER_API_KEY not set. LLM features will not work.');
+    } else {
+      // Validate API key format
+      const isValidFormat = this.apiKey.startsWith('sk-or-v1-') || this.apiKey.startsWith('sk-or-');
+      if (!isValidFormat) {
+        console.warn('⚠️ OPENROUTER_API_KEY does not start with expected format (sk-or-v1- or sk-or-).');
+        console.warn(`   Key starts with: ${this.apiKey.substring(0, 10)}...`);
+      } else {
+        console.log(`✅ OPENROUTER_API_KEY loaded successfully (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
+      }
     }
   }
 
@@ -139,7 +149,13 @@ export class LLMService {
     topic: { number: number; label: string; description: string }
   ): Promise<string[]> {
     console.log(`   🔧 LLM Service: Starting question generation for topic ${topic.number}`);
-    console.log(`      API Key status: ${this.apiKey ? `SET (length: ${this.apiKey.length})` : 'NOT SET'}`);
+    if (this.apiKey) {
+      console.log(`      API Key: SET (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
+      const isValidFormat = this.apiKey.startsWith('sk-or-v1-') || this.apiKey.startsWith('sk-or-');
+      console.log(`      API Key format: ${isValidFormat ? '✅ Valid' : '⚠️ Unexpected format'}`);
+    } else {
+      console.log(`      API Key: NOT SET`);
+    }
     console.log(`      Model: ${this.model}`);
     console.log(`      Base URL: ${this.baseUrl}`);
     
@@ -172,7 +188,7 @@ export class LLMService {
         },
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey.substring(0, 10)}...`,
+            Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
         }
