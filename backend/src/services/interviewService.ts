@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Interview } from '../models/Interview';
-import { Question } from '../models/Question';
+import { Question, IQuestion } from '../models/Question';
 import { InterviewQuestion } from '../models/InterviewQuestion';
 import { InterviewSession } from '../models/InterviewSession';
 import { TopicState } from '../models/TopicState';
@@ -50,7 +50,7 @@ export class InterviewService {
     await session.save();
 
     // Create interview questions
-    let questions;
+    let questions: IQuestion[] = [];
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:52',message:'Starting question selection',data:{hasQuestionIds:!!data.questionIds,questionIdsCount:data.questionIds?.length||0,hasChallengeId:!!data.challengeId,challengeId:data.challengeId,selectedTopics:data.selectedTopics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
