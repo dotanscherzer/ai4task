@@ -275,7 +275,7 @@ const TopicManagement = () => {
                   })()}
                   {/* #endregion */}
                   {formExampleQuestions.map((question, index) => (
-                    <div key={`example-question-${index}-${question.substring(0, 10)}`} className="example-question-item">
+                    <div key={`example-question-${index}`} className="example-question-item">
                       <textarea
                         value={question}
                         onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
