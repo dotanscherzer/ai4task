@@ -89,8 +89,7 @@ export class LLMService {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 2048,
-            responseMimeType: 'application/json'
+            maxOutputTokens: 2048
           }
         },
         {
@@ -189,8 +188,7 @@ export class LLMService {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1024,
-            responseMimeType: 'application/json'
+            maxOutputTokens: 1024
           }
         },
         {
