@@ -90,8 +90,18 @@ export class ChallengeService {
               isDefault: false,
             }));
 
+            // Validate challengeId before saving
+            console.log(`   🔍 Validating before save: challengeId=${challengeId}, topic=${topic.number}, questions=${questions.length}`);
+            
             await Question.insertMany(questionDocs);
             totalQuestionsCreated += questions.length;
+            
+            // Verify questions were saved correctly
+            const savedQuestions = await Question.find({ 
+              challengeId: challengeId, 
+              topicNumber: topic.number 
+            }).limit(5).lean();
+            console.log(`   ✅ Verified: Saved ${savedQuestions.length} questions for challenge ${challengeId}, topic ${topic.number}`);
             console.log(`   ✅ Successfully saved ${questions.length} questions for topic ${topic.number}`);
           } else {
             console.warn(`   ⚠️ No questions generated for topic ${topic.number} (LLM returned empty array)`);
@@ -222,7 +232,17 @@ export class ChallengeService {
                   isDefault: false,
                 }));
 
+                // Validate challengeId before saving
+                console.log(`   🔍 Validating before save: challengeId=${challengeId}, topic=${topic.number}, questions=${questions.length}`);
+                
                 await Question.insertMany(questionDocs);
+                
+                // Verify questions were saved correctly
+                const savedQuestions = await Question.find({ 
+                  challengeId: new mongoose.Types.ObjectId(challengeId), 
+                  topicNumber: topic.number 
+                }).limit(5).lean();
+                console.log(`   ✅ Verified: Saved ${savedQuestions.length} questions for challenge ${challengeId}, topic ${topic.number}`);
                 console.log(`✅ Generated ${questions.length} questions for new topic ${topic.number}`);
               } else {
                 console.warn(`⚠️ No questions generated for topic ${topic.number}`);

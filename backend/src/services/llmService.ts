@@ -158,6 +158,7 @@ export class LLMService {
     topic: { number: number; label: string; description: string }
   ): Promise<string[]> {
     console.log(`   🔧 LLM Service: Starting question generation for topic ${topic.number}`);
+    console.log(`   📋 Challenge: "${challengeName}"`);
     if (this.apiKey) {
       console.log(`      API Key: SET (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
     } else {
@@ -171,141 +172,211 @@ export class LLMService {
       return [];
     }
 
-    try {
-      const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
-      
-      // Combine system instruction with prompt for Gemini
-      const systemInstruction = 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.';
-      const fullPrompt = `${systemInstruction}\n\n${prompt}`;
-      
-      console.log(`   📤 Sending request to Gemini...`);
-      console.log(`      Prompt length: ${fullPrompt.length} characters`);
-      console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
-      console.log(`      Topic: ${topic.number} - ${topic.label}`);
+    const maxRetries = 3;
+    let lastError: any = null;
 
-      const startTime = Date.now();
-      const response = await axios.post(
-        `${this.baseUrl}?key=${this.apiKey}`,
-        {
-          contents: [
-            {
-              parts: [
-                { text: fullPrompt }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048
-          }
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const duration = Date.now() - startTime;
-      console.log(`   ⏱️ LLM request completed in ${duration}ms`);
-      console.log(`   📥 Response status: ${response.status}`);
-
-      let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!content) {
-        console.error(`   ❌ No content in LLM response`);
-        console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
-        throw new Error('No content in LLM response');
-      }
-
-      // Remove markdown code blocks if present
-      content = content.trim();
-      if (content.startsWith('```json')) {
-        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        console.log(`   🔧 Removed markdown code block wrapper from response`);
-      } else if (content.startsWith('```')) {
-        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
-        console.log(`   🔧 Removed markdown code block wrapper from response`);
-      }
-
-      console.log(`   📄 Response content length: ${content.length} characters`);
-      console.log(`   📄 Response preview: ${content.substring(0, 100)}...`);
-
-      let parsed: any;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        parsed = JSON.parse(content);
-        console.log(`   ✅ Successfully parsed JSON response`);
-      } catch (parseError: any) {
-        console.error(`   ❌ Failed to parse JSON response`);
-        console.error(`      Parse error: ${parseError.message}`);
-        console.error(`      Content preview: ${content.substring(0, 500)}...`);
-        throw new Error(`Failed to parse LLM response as JSON: ${parseError.message}`);
-      }
-      
-      // Handle different response formats
-      let questions: string[] = [];
-      console.log(`   🔍 Parsing response structure...`);
-      console.log(`      Response keys: ${Object.keys(parsed).join(', ')}`);
-      
-      if (parsed.questions && Array.isArray(parsed.questions)) {
-        questions = parsed.questions;
-        console.log(`   ✅ Found questions in 'questions' array (${questions.length} items)`);
-      } else if (parsed.questionList && Array.isArray(parsed.questionList)) {
-        questions = parsed.questionList;
-        console.log(`   ✅ Found questions in 'questionList' array (${questions.length} items)`);
-      } else if (Array.isArray(parsed)) {
-        questions = parsed;
-        console.log(`   ✅ Response is direct array (${questions.length} items)`);
-      } else {
-        // Try to extract questions from any array in the response
-        const values = Object.values(parsed);
-        const firstArray = values.find((v) => Array.isArray(v)) as string[] | undefined;
-        if (firstArray) {
-          questions = firstArray;
-          console.log(`   ✅ Found array in response values (${questions.length} items)`);
+        if (attempt > 1) {
+          // Exponential backoff for retries
+          const delay = Math.min(1000 * Math.pow(2, attempt - 2), 10000);
+          console.log(`   🔄 Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
+        const systemInstruction = 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.';
+        const fullPrompt = `${systemInstruction}\n\n${prompt}`;
+        
+        console.log(`   📤 Sending request to Gemini (attempt ${attempt}/${maxRetries})...`);
+        console.log(`      Prompt length: ${fullPrompt.length} characters`);
+        console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
+        console.log(`      Topic: ${topic.number} - ${topic.label}`);
+
+        const startTime = Date.now();
+        const response = await axios.post(
+          `${this.baseUrl}?key=${this.apiKey}`,
+          {
+            contents: [
+              {
+                parts: [
+                  { text: fullPrompt }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048
+            }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+        const duration = Date.now() - startTime;
+        console.log(`   ⏱️ LLM request completed in ${duration}ms`);
+        console.log(`   📥 Response status: ${response.status}`);
+
+        let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!content) {
+          console.error(`   ❌ No content in LLM response`);
+          console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
+          throw new Error('No content in LLM response');
+        }
+
+        // Remove markdown code blocks if present
+        content = content.trim();
+        if (content.startsWith('```json')) {
+          content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+          console.log(`   🔧 Removed markdown code block wrapper from response`);
+        } else if (content.startsWith('```')) {
+          content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+          console.log(`   🔧 Removed markdown code block wrapper from response`);
+        }
+
+        console.log(`   📄 Response content length: ${content.length} characters`);
+        console.log(`   📄 Response preview: ${content.substring(0, 100)}...`);
+
+        // Try to parse JSON, with fallback for incomplete JSON
+        let parsed: any;
+        try {
+          parsed = JSON.parse(content);
+          console.log(`   ✅ Successfully parsed JSON response`);
+        } catch (parseError: any) {
+          console.warn(`   ⚠️ JSON parse error, attempting to fix...`);
+          // Try to fix incomplete JSON by closing brackets
+          let fixedContent = content.trim();
+          
+          // Count open/close brackets
+          const openBraces = (fixedContent.match(/\{/g) || []).length;
+          const closeBraces = (fixedContent.match(/\}/g) || []).length;
+          const openBrackets = (fixedContent.match(/\[/g) || []).length;
+          const closeBrackets = (fixedContent.match(/\]/g) || []).length;
+          
+          // Close missing brackets
+          if (openBrackets > closeBrackets) {
+            fixedContent += ']'.repeat(openBrackets - closeBrackets);
+          }
+          if (openBraces > closeBraces) {
+            fixedContent += '}'.repeat(openBraces - closeBraces);
+          }
+          
+          // Try parsing again
+          try {
+            parsed = JSON.parse(fixedContent);
+            console.log(`   ✅ Successfully parsed fixed JSON`);
+          } catch (secondParseError: any) {
+            // Last resort: try to extract questions even from incomplete JSON
+            const questionsMatch = fixedContent.match(/"questions"\s*:\s*\[(.*?)\]/s);
+            if (questionsMatch) {
+              const questionsText = questionsMatch[1];
+              // Extract individual question strings
+              const questionMatches = questionsText.match(/"([^"]+)"/g);
+              if (questionMatches && questionMatches.length > 0) {
+                const questions = questionMatches.map((q: string) => q.replace(/^"|"$/g, ''));
+                console.log(`   ✅ Extracted ${questions.length} questions from incomplete JSON`);
+                return questions.slice(0, 4);
+              }
+            }
+            throw parseError;
+          }
+        }
+        
+        // Handle different response formats
+        let questions: string[] = [];
+        console.log(`   🔍 Parsing response structure...`);
+        console.log(`      Response keys: ${Object.keys(parsed).join(', ')}`);
+        
+        if (parsed.questions && Array.isArray(parsed.questions)) {
+          questions = parsed.questions;
+          console.log(`   ✅ Found questions in 'questions' array (${questions.length} items)`);
+        } else if (parsed.questionList && Array.isArray(parsed.questionList)) {
+          questions = parsed.questionList;
+          console.log(`   ✅ Found questions in 'questionList' array (${questions.length} items)`);
+        } else if (Array.isArray(parsed)) {
+          questions = parsed;
+          console.log(`   ✅ Response is direct array (${questions.length} items)`);
         } else {
-          console.warn(`   ⚠️ No array found in response structure`);
-          console.warn(`      Response structure: ${JSON.stringify(parsed).substring(0, 300)}...`);
+          // Try to extract questions from any array in the response
+          const values = Object.values(parsed);
+          const firstArray = values.find((v) => Array.isArray(v)) as string[] | undefined;
+          if (firstArray) {
+            questions = firstArray;
+            console.log(`   ✅ Found array in response values (${questions.length} items)`);
+          } else {
+            console.warn(`   ⚠️ No array found in response structure`);
+            console.warn(`      Response structure: ${JSON.stringify(parsed).substring(0, 300)}...`);
+          }
+        }
+
+        // Validate and filter questions
+        const originalCount = questions.length;
+        questions = questions
+          .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
+          .map((q: string) => q.trim())
+          .slice(0, 4); // Max 4 questions
+
+        if (originalCount !== questions.length) {
+          console.log(`   🔍 Filtered questions: ${originalCount} → ${questions.length} (removed invalid/empty)`);
+        }
+
+        // If we got less than 3 questions, try to generate more or return what we have
+        if (questions.length < 3 && questions.length > 0) {
+          console.warn(`   ⚠️ Generated only ${questions.length} questions for topic ${topic.number} (expected 3-4)`);
+        }
+
+        if (questions.length > 0) {
+          console.log(`   ✅ Successfully extracted ${questions.length} questions`);
+          questions.forEach((q, i) => {
+            console.log(`      ${i + 1}. ${q.substring(0, 60)}${q.length > 60 ? '...' : ''}`);
+          });
+          return questions;
+        } else {
+          throw new Error('No valid questions extracted from response');
+        }
+
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a rate limit error (429)
+        if (error.response?.status === 429) {
+          console.error(`   ❌ Rate limit exceeded (429) on attempt ${attempt}`);
+          if (attempt < maxRetries) {
+            // Wait longer for rate limit
+            const delay = Math.min(5000 * attempt, 30000);
+            console.log(`   ⏳ Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+        }
+        
+        // Check if it's a JSON parsing error
+        if (error.message?.includes('JSON') || error.message?.includes('parse')) {
+          console.error(`   ❌ JSON parsing error on attempt ${attempt}`);
+          if (attempt < maxRetries) {
+            continue; // Retry
+          }
+        }
+        
+        // For other errors, log and break
+        if (attempt === maxRetries) {
+          console.error(`   ❌ LLM Question Generation Error for topic ${topic.number} after ${maxRetries} attempts:`);
+          console.error(`      Error type: ${error.constructor?.name || 'Unknown'}`);
+          console.error(`      Error message: ${error.message || error}`);
+          if (error.response) {
+            console.error(`      Response status: ${error.response.status}`);
+            console.error(`      Response data: ${JSON.stringify(error.response.data).substring(0, 300)}...`);
+          }
+          if (error.stack) {
+            console.error(`      Stack trace: ${error.stack.substring(0, 300)}...`);
+          }
         }
       }
-
-      // Validate and filter questions
-      const originalCount = questions.length;
-      questions = questions
-        .filter((q: any) => typeof q === 'string' && q.trim().length > 0)
-        .map((q: string) => q.trim())
-        .slice(0, 4); // Max 4 questions
-
-      if (originalCount !== questions.length) {
-        console.log(`   🔍 Filtered questions: ${originalCount} → ${questions.length} (removed invalid/empty)`);
-      }
-
-      // If we got less than 3 questions, try to generate more or return what we have
-      if (questions.length < 3 && questions.length > 0) {
-        console.warn(`   ⚠️ Generated only ${questions.length} questions for topic ${topic.number} (expected 3-4)`);
-      }
-
-      if (questions.length > 0) {
-        console.log(`   ✅ Successfully extracted ${questions.length} questions`);
-        questions.forEach((q, i) => {
-          console.log(`      ${i + 1}. ${q.substring(0, 60)}${q.length > 60 ? '...' : ''}`);
-        });
-      } else {
-        console.warn(`   ⚠️ No valid questions extracted from LLM response`);
-      }
-
-      return questions.length > 0 ? questions : [];
-    } catch (error: any) {
-      console.error(`   ❌ LLM Question Generation Error for topic ${topic.number}:`);
-      console.error(`      Error type: ${error.constructor?.name || 'Unknown'}`);
-      console.error(`      Error message: ${error.message || error}`);
-      if (error.response) {
-        console.error(`      Response status: ${error.response.status}`);
-        console.error(`      Response data: ${JSON.stringify(error.response.data).substring(0, 300)}...`);
-      }
-      if (error.stack) {
-        console.error(`      Stack trace: ${error.stack.substring(0, 300)}...`);
-      }
-      return [];
     }
+
+    return []; // Return empty array if all retries failed
   }
 
   private buildQuestionGenerationPrompt(
