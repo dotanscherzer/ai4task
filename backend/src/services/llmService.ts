@@ -51,8 +51,8 @@ export class LLMService {
   constructor() {
     const rawKey = process.env.GEMINI_API_KEY || '';
     this.apiKey = rawKey.trim();
-    this.model = process.env.GEMINI_MODEL || 'gemini-pro';
-    this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
+    this.model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    this.baseUrl = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent`;
 
     if (!this.apiKey) {
       console.warn('⚠️ GEMINI_API_KEY not set. LLM features will not work.');
