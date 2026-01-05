@@ -108,20 +108,19 @@ const TopicManagement = () => {
     }
   };
 
-  const handleAddExampleQuestion = () => {
+  const handleAddExampleQuestion = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:105',message:'handleAddExampleQuestion called',data:{currentState:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    console.log('[DEBUG] handleAddExampleQuestion called', { currentState: formExampleQuestions, length: formExampleQuestions.length });
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:111',message:'handleAddExampleQuestion called',data:{currentState:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
     // #endregion
-    setFormExampleQuestions((prev) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:107',message:'setFormExampleQuestions callback - before update',data:{prevState:prev,prevLength:prev.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      const newState = [...prev, ''];
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:111',message:'setFormExampleQuestions callback - after update',data:{newState:newState,newLength:newState.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      return newState;
-    });
+    const newQuestions = [...formExampleQuestions, ''];
+    // #region agent log
+    console.log('[DEBUG] handleAddExampleQuestion - new state', { newQuestions, length: newQuestions.length });
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:115',message:'handleAddExampleQuestion - new state',data:{newQuestions:newQuestions,length:newQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
+    // #endregion
+    setFormExampleQuestions(newQuestions);
   };
 
   const handleRemoveExampleQuestion = (index: number) => {
@@ -270,7 +269,8 @@ const TopicManagement = () => {
                 <div className="example-questions-list">
                   {/* #region agent log */}
                   {(() => {
-                    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:247',message:'Rendering example questions list',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length,questions:formExampleQuestions.map((q,i)=>({index:i,value:q.substring(0,20)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    console.log('[DEBUG] Rendering example questions list', { formExampleQuestions, length: formExampleQuestions.length, questions: formExampleQuestions.map((q, i) => ({ index: i, value: q.substring(0, 20) })) });
+                    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:247',message:'Rendering example questions list',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length,questions:formExampleQuestions.map((q,i)=>({index:i,value:q.substring(0,20)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
                     return null;
                   })()}
                   {/* #endregion */}
@@ -297,7 +297,7 @@ const TopicManagement = () => {
                   ))}
                   <button
                     type="button"
-                    onClick={handleAddExampleQuestion}
+                    onClick={(e) => handleAddExampleQuestion(e)}
                     disabled={isSubmitting}
                     className="btn-add-question"
                   >
