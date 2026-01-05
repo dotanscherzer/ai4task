@@ -53,7 +53,12 @@ export class LLMService {
     this.apiKey = rawKey.trim();
     // Try different free model names - OpenRouter model naming may vary
     // Common free models: meta-llama/llama-3.1-8b-instruct, qwen/qwen-2.5-7b-instruct:free, mistralai/mistral-7b-instruct:free
-    this.model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct';
+    let modelValue = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct';
+    // Clean up if the value includes the variable name (e.g., "OPENROUTER_MODEL=value")
+    if (modelValue.includes('=')) {
+      modelValue = modelValue.split('=').pop() || 'meta-llama/llama-3.1-8b-instruct';
+    }
+    this.model = modelValue.trim();
     this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
     if (!this.apiKey) {
@@ -129,6 +134,12 @@ export class LLMService {
         content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       } else if (content.startsWith('```')) {
         content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+
+      // Extract JSON if there's text before it (common with some models)
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch && !content.trim().startsWith('{')) {
+        content = jsonMatch[0];
       }
 
       const parsed = JSON.parse(content) as LLMResponse;
@@ -275,6 +286,13 @@ export class LLMService {
         } else if (content.startsWith('```')) {
           content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
           console.log(`   🔧 Removed markdown code block wrapper from response`);
+        }
+
+        // Extract JSON if there's text before it (common with some models)
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch && !content.trim().startsWith('{')) {
+          content = jsonMatch[0];
+          console.log(`   🔧 Extracted JSON from response with preceding text`);
         }
 
         console.log(`   📄 Response content length: ${content.length} characters`);
