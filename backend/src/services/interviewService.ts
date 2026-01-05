@@ -51,14 +51,38 @@ export class InterviewService {
 
     // Create interview questions
     let questions;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:52',message:'Starting question selection',data:{hasQuestionIds:!!data.questionIds,questionIdsCount:data.questionIds?.length||0,hasChallengeId:!!data.challengeId,challengeId:data.challengeId,selectedTopics:data.selectedTopics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     if (data.questionIds && data.questionIds.length > 0) {
       questions = await Question.find({ _id: { $in: data.questionIds } });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:55',message:'Found questions by questionIds',data:{questionsCount:questions.length,questionIds:data.questionIds},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+    } else if (data.challengeId) {
+      // Use challenge-specific questions for selected topics
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:59',message:'Looking for challenge questions',data:{challengeId:data.challengeId,selectedTopics:data.selectedTopics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      questions = await Question.find({
+        challengeId: new mongoose.Types.ObjectId(data.challengeId),
+        topicNumber: { $in: data.selectedTopics },
+      });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:65',message:'Challenge questions query result',data:{challengeId:data.challengeId,questionsCount:questions.length,questionsByTopic:data.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t).length})),sampleQuestions:questions.slice(0,3).map((q:any)=>({topicNumber:q.topicNumber,text:q.questionText.substring(0,50)})),allQuestionChallengeIds:questions.map((q:any)=>q.challengeId?.toString())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     } else {
       // Use default questions for selected topics
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:70',message:'Looking for default questions',data:{selectedTopics:data.selectedTopics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       questions = await Question.find({
         topicNumber: { $in: data.selectedTopics },
         isDefault: true,
       });
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:75',message:'Default questions query result',data:{questionsCount:questions.length,questionsByTopic:data.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t).length}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
     }
 
     const interviewQuestions = questions.map((q, index) => ({
@@ -68,7 +92,13 @@ export class InterviewService {
       sortOrder: index + 1,
     }));
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:78',message:'Before inserting interview questions',data:{interviewId:interview._id.toString(),interviewQuestionsCount:interviewQuestions.length,questionsCount:questions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     await InterviewQuestion.insertMany(interviewQuestions);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'interviewService.ts:81',message:'After inserting interview questions',data:{interviewId:interview._id.toString(),insertedCount:interviewQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
 
     // Initialize topic states
     const topicStates = data.selectedTopics.map((topicNumber) => ({

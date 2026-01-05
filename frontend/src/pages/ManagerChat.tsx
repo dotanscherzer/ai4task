@@ -59,13 +59,25 @@ const ManagerChat = () => {
   const loadState = async () => {
     try {
       setIsLoading(true);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ManagerChat.tsx:59',message:'loadState entry',data:{shareToken},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       const data = await managerAPI.getState(shareToken!);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ManagerChat.tsx:63',message:'State API response received',data:{hasData:!!data,recentMessagesCount:data?.recent_messages?.length||0,hasNextQuestionText:!!data?.current?.next_question_text,nextQuestionText:data?.current?.next_question_text?.substring(0,50),currentTopic:data?.current?.topic_number,interviewStatus:data?.interview?.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       
       // Prepare initial messages - if no messages exist and there's a first question, add it
       let initialMessages = data.recent_messages || [];
       if (initialMessages.length === 0 && data.current.next_question_text) {
         initialMessages = [{ role: 'bot', content: data.current.next_question_text }];
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ManagerChat.tsx:67',message:'Added initial message from next_question_text',data:{initialMessagesCount:initialMessages.length,nextQuestionText:data.current.next_question_text.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
       }
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ManagerChat.tsx:70',message:'Final state being set',data:{initialMessagesCount:initialMessages.length,currentTopic:data.current.topic_number,hasNextQuestion:!!data.current.next_question_text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       
       setState({
         interview: data.interview,

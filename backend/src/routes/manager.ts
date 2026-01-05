@@ -111,12 +111,21 @@ router.post('/state', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'share_token is required' });
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:106',message:'State endpoint entry',data:{share_token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const data = await interviewService.getInterviewByToken(share_token);
     if (!data) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:114',message:'Interview not found',data:{share_token},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return res.status(404).json({ error: 'Interview not found' });
     }
 
     const { interview, questions, topicStates, session } = data;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:120',message:'Interview data loaded',data:{interviewId:interview._id.toString(),challengeId:interview.challengeId?.toString(),selectedTopics:interview.selectedTopics,questionsCount:questions.length,questionsByTopic:interview.selectedTopics.map((t:number)=>({topic:t,count:questions.filter((q:any)=>q.topicNumber===t&&q.enabled).length})),topicStatesCount:topicStates.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     const interviewId = new mongoose.Types.ObjectId(interview._id);
 
@@ -182,9 +191,15 @@ router.post('/state', async (req: Request, res: Response) => {
       (q: any) => !askedQuestions.includes(q.questionText)
     );
     const nextQuestion = remainingQuestions[0];
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:184',message:'Question selection result',data:{currentTopic,topicQuestionsCount:topicQuestions.length,askedQuestionsCount:askedQuestions.length,remainingQuestionsCount:remainingQuestions.length,hasNextQuestion:!!nextQuestion,nextQuestionText:nextQuestion?.questionText?.substring(0,50),recentMessagesCount:recentMessages.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
 
     // If no messages exist and there's a first question, create opening message
     if (recentMessages.length === 0 && nextQuestion) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'manager.ts:188',message:'Creating opening message',data:{currentTopic,nextQuestionText:nextQuestion.questionText.substring(0,50),hasChallengeId:!!interview.challengeId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       // Build opening message with challenge description
       let openingContent = `שלום ${interview.managerName},\n\n`;
       
