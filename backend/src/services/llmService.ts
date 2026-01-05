@@ -51,7 +51,7 @@ export class LLMService {
   constructor() {
     const rawKey = process.env.GEMINI_API_KEY || '';
     this.apiKey = rawKey.trim();
-    this.model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    this.model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
     this.baseUrl = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent`;
 
     if (!this.apiKey) {
@@ -99,9 +99,17 @@ export class LLMService {
         }
       );
 
-      const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+      let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!content) {
         throw new Error('No content in LLM response');
+      }
+
+      // Remove markdown code blocks if present
+      content = content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
 
       const parsed = JSON.parse(content) as LLMResponse;
@@ -188,7 +196,7 @@ export class LLMService {
           ],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 1024
+            maxOutputTokens: 2048
           }
         },
         {
@@ -201,11 +209,21 @@ export class LLMService {
       console.log(`   ⏱️ LLM request completed in ${duration}ms`);
       console.log(`   📥 Response status: ${response.status}`);
 
-      const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+      let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!content) {
         console.error(`   ❌ No content in LLM response`);
         console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
         throw new Error('No content in LLM response');
+      }
+
+      // Remove markdown code blocks if present
+      content = content.trim();
+      if (content.startsWith('```json')) {
+        content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        console.log(`   🔧 Removed markdown code block wrapper from response`);
+      } else if (content.startsWith('```')) {
+        content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        console.log(`   🔧 Removed markdown code block wrapper from response`);
       }
 
       console.log(`   📄 Response content length: ${content.length} characters`);
