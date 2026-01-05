@@ -1,57 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { challengesAPI } from '../services/api';
-import { Challenge } from '../types';
+import { challengesAPI, topicsAPI } from '../services/api';
+import { Challenge, Topic } from '../types';
 import ChallengeQuestionsModal from '../components/ChallengeQuestionsModal';
 import './ChallengeManagement.css';
-
-const TOPICS = [
-  { 
-    number: 1, 
-    label: 'תיאור האתגר והכאב המרכזי',
-    description: 'שאלות על איפה בדיוק "כואב" בפירוק HLD, איך האתגר מתבטא בשטח ולמה זה קורה'
-  },
-  { 
-    number: 2, 
-    label: 'השפעה עסקית ומיקודים ארגוניים',
-    description: 'שאלות על מיקודים עסקיים שנפגעים, הפגיעות המשמעותיות והעלות העסקית של פירוק לא טוב'
-  },
-  { 
-    number: 3, 
-    label: 'קהל יעד, היקף ותלותים',
-    description: 'שאלות על צרכני הפירוק, היקף המדורים, תדירות, סוגי פרויקטים בעייתיים וצווארי בקבוק'
-  },
-  { 
-    number: 4, 
-    label: 'מדדים (KPI) והשפעה מדידה',
-    description: 'שאלות על מדדים שנפגעים בפועל ויעדי השיפור הרצויים'
-  },
-  { 
-    number: 5, 
-    label: 'מה נחשב הצלחה (ללא קשר ל-AI)',
-    description: 'שאלות על Definition of Ready, המינימום המספיק, גרנולריות וקריטריוני אישור'
-  },
-  { 
-    number: 6, 
-    label: 'דאטה, כלים ותשתית תומכת',
-    description: 'שאלות על כלי Backlog, שמירת HLD, תבניות, אוצר מילים אחיד ומגבלות מידע'
-  },
-  { 
-    number: 7, 
-    label: 'מורכבות, סיכונים ושינוי ארגוני',
-    description: 'שאלות על Audit Trail, אחידות בין מדורים, Scope Churn, תלויות חיצוניות והתנגדות ארגונית'
-  },
-  { 
-    number: 8, 
-    label: 'Best Practices וצעדי המשך',
-    description: 'שאלות על Best Practices, פיילוט, תבניות אחידות, Workflow של Review/Approval ותוצרים נדרשים'
-  },
-];
 
 const ChallengeManagement = () => {
   const { logout } = useAuth();
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
   const [error, setError] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
@@ -65,7 +24,20 @@ const ChallengeManagement = () => {
 
   useEffect(() => {
     loadChallenges();
+    loadTopics();
   }, []);
+
+  const loadTopics = async () => {
+    try {
+      setIsLoadingTopics(true);
+      const data = await topicsAPI.list();
+      setTopics(data);
+    } catch (err: any) {
+      console.error('Error loading topics:', err);
+    } finally {
+      setIsLoadingTopics(false);
+    }
+  };
 
   const loadChallenges = async () => {
     try {
@@ -148,7 +120,7 @@ const ChallengeManagement = () => {
   };
 
   const getTopicLabel = (topicNumber: number) => {
-    const topic = TOPICS.find((t) => t.number === topicNumber);
+    const topic = topics.find((t) => t.number === topicNumber);
     return topic ? `נושא ${topicNumber}: ${topic.label}` : `נושא ${topicNumber}`;
   };
 
@@ -262,24 +234,28 @@ const ChallengeManagement = () => {
 
               <div className="form-group">
                 <label>נושאים *</label>
-                <div className="topics-grid">
-                  {TOPICS.map((topic) => (
-                    <label key={topic.number} className="topic-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={formTopicNumbers.includes(topic.number)}
-                        onChange={() => handleTopicToggle(topic.number)}
-                        disabled={isSubmitting}
-                      />
-                      <div className="topic-content">
-                        <span className="topic-label">
-                          נושא {topic.number}: {topic.label}
-                        </span>
-                        <span className="topic-description">{topic.description}</span>
-                      </div>
-                    </label>
-                  ))}
-                </div>
+                {isLoadingTopics ? (
+                  <div className="loading">טוען נושאים...</div>
+                ) : (
+                  <div className="topics-grid">
+                    {topics.map((topic) => (
+                      <label key={topic.number} className="topic-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={formTopicNumbers.includes(topic.number)}
+                          onChange={() => handleTopicToggle(topic.number)}
+                          disabled={isSubmitting}
+                        />
+                        <div className="topic-content">
+                          <span className="topic-label">
+                            נושא {topic.number}: {topic.label}
+                          </span>
+                          <span className="topic-description">{topic.description}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="modal-actions">

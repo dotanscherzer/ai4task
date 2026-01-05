@@ -108,6 +108,9 @@ const AdminDashboard = () => {
           <a href="/admin/challenges" className="challenges-link">
             ניהול אתגרים
           </a>
+          <a href="/admin/topics" className="challenges-link">
+            ניהול נושאים
+          </a>
           <span className="user-email">{user?.email}</span>
           <button onClick={logout} className="logout-btn">
             התנתק

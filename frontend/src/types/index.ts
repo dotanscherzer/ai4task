@@ -1,3 +1,12 @@
+export interface Topic {
+  _id: string;
+  number: number;
+  label: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Challenge {
   _id: string;
   name: string;

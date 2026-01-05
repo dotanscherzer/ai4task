@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import './CreateInterviewModal.css';
-import { challengesAPI } from '../services/api';
-import { Challenge } from '../types';
+import { challengesAPI, topicsAPI } from '../services/api';
+import { Challenge, Topic } from '../types';
 
 interface CreateInterviewModalProps {
   onClose: () => void;
@@ -14,49 +14,6 @@ interface CreateInterviewModalProps {
   }) => void;
 }
 
-const TOPICS = [
-  { 
-    number: 1, 
-    label: 'תיאור האתגר והכאב המרכזי',
-    description: 'שאלות על איפה בדיוק "כואב" בפירוק HLD, איך האתגר מתבטא בשטח ולמה זה קורה'
-  },
-  { 
-    number: 2, 
-    label: 'השפעה עסקית ומיקודים ארגוניים',
-    description: 'שאלות על מיקודים עסקיים שנפגעים, הפגיעות המשמעותיות והעלות העסקית של פירוק לא טוב'
-  },
-  { 
-    number: 3, 
-    label: 'קהל יעד, היקף ותלותים',
-    description: 'שאלות על צרכני הפירוק, היקף המדורים, תדירות, סוגי פרויקטים בעייתיים וצווארי בקבוק'
-  },
-  { 
-    number: 4, 
-    label: 'מדדים (KPI) והשפעה מדידה',
-    description: 'שאלות על מדדים שנפגעים בפועל ויעדי השיפור הרצויים'
-  },
-  { 
-    number: 5, 
-    label: 'מה נחשב הצלחה (ללא קשר ל-AI)',
-    description: 'שאלות על Definition of Ready, המינימום המספיק, גרנולריות וקריטריוני אישור'
-  },
-  { 
-    number: 6, 
-    label: 'דאטה, כלים ותשתית תומכת',
-    description: 'שאלות על כלי Backlog, שמירת HLD, תבניות, אוצר מילים אחיד ומגבלות מידע'
-  },
-  { 
-    number: 7, 
-    label: 'מורכבות, סיכונים ושינוי ארגוני',
-    description: 'שאלות על Audit Trail, אחידות בין מדורים, Scope Churn, תלויות חיצוניות והתנגדות ארגונית'
-  },
-  { 
-    number: 8, 
-    label: 'Best Practices וצעדי המשך',
-    description: 'שאלות על Best Practices, פיילוט, תבניות אחידות, Workflow של Review/Approval ותוצרים נדרשים'
-  },
-];
-
 const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) => {
   const [managerName, setManagerName] = useState('');
   const [managerRole, setManagerRole] = useState('');
@@ -64,8 +21,10 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
   const [selectedTopics, setSelectedTopics] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoadingChallenges, setIsLoadingChallenges] = useState(true);
-  const [availableTopics, setAvailableTopics] = useState<typeof TOPICS>([]);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+  const [availableTopics, setAvailableTopics] = useState<Topic[]>([]);
 
   useEffect(() => {
     const loadChallenges = async () => {
@@ -80,7 +39,19 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
         setIsLoadingChallenges(false);
       }
     };
+    const loadTopics = async () => {
+      try {
+        setIsLoadingTopics(true);
+        const data = await topicsAPI.list();
+        setTopics(data);
+      } catch (error) {
+        console.error('Error loading topics:', error);
+      } finally {
+        setIsLoadingTopics(false);
+      }
+    };
     loadChallenges();
+    loadTopics();
   }, []);
 
   useEffect(() => {
@@ -88,7 +59,7 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
       const challenge = challenges.find((c) => c._id === selectedChallengeId);
       if (challenge) {
         // Filter topics to only show those in the challenge
-        const challengeTopics = TOPICS.filter((topic) =>
+        const challengeTopics = topics.filter((topic) =>
           challenge.topicNumbers.includes(topic.number)
         );
         setAvailableTopics(challengeTopics);
@@ -99,7 +70,7 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
       setAvailableTopics([]);
       setSelectedTopics([]);
     }
-  }, [selectedChallengeId, challenges]);
+  }, [selectedChallengeId, challenges, topics]);
 
   const handleChallengeChange = (challengeId: string) => {
     setSelectedChallengeId(challengeId);
@@ -207,7 +178,11 @@ const CreateInterviewModal = ({ onClose, onSubmit }: CreateInterviewModalProps) 
           {selectedChallengeId && (
             <div className="form-group">
               <label>נושאים *</label>
-              {availableTopics.length === 0 ? (
+              {isLoadingTopics ? (
+                <div style={{ color: '#999', padding: '10px' }}>
+                  טוען נושאים...
+                </div>
+              ) : availableTopics.length === 0 ? (
                 <div style={{ color: '#999', padding: '10px' }}>
                   אין נושאים זמינים לאתגר זה
                 </div>

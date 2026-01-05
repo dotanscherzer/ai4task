@@ -10,6 +10,7 @@ import interviewRoutes from './routes/interviews';
 import managerRoutes from './routes/manager';
 import emailRoutes from './routes/email';
 import challengeRoutes from './routes/challenges';
+import topicsRoutes from './routes/topics';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/challenges', challengeRoutes);
+app.use('/api/topics', topicsRoutes);
 
 // Error handling
 app.use(errorHandler);

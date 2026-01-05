@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Interview, Challenge } from '../types';
+import { Interview, Challenge, Topic } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -31,6 +31,42 @@ export const authAPI = {
   },
   getMe: async () => {
     const response = await api.get('/auth/me');
+    return response.data;
+  },
+};
+
+// Topics API
+export const topicsAPI = {
+  list: async (): Promise<Topic[]> => {
+    const response = await api.get<Topic[]>('/topics');
+    return response.data;
+  },
+  get: async (id: string): Promise<Topic> => {
+    const response = await api.get<Topic>(`/topics/${id}`);
+    return response.data;
+  },
+  getByNumber: async (number: number): Promise<Topic> => {
+    const response = await api.get<Topic>(`/topics/number/${number}`);
+    return response.data;
+  },
+  create: async (data: {
+    number: number;
+    label: string;
+    description: string;
+  }): Promise<Topic> => {
+    const response = await api.post<Topic>('/topics', data);
+    return response.data;
+  },
+  update: async (id: string, data: {
+    number?: number;
+    label?: string;
+    description?: string;
+  }): Promise<Topic> => {
+    const response = await api.put<Topic>(`/topics/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: string) => {
+    const response = await api.delete(`/topics/${id}`);
     return response.data;
   },
 };

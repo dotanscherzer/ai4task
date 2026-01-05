@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { challengesAPI } from '../services/api';
-import { Question, Challenge } from '../types';
+import { challengesAPI, topicsAPI } from '../services/api';
+import { Question, Challenge, Topic } from '../types';
 import './ChallengeQuestionsModal.css';
 
 interface ChallengeQuestionsModalProps {
@@ -8,52 +8,11 @@ interface ChallengeQuestionsModalProps {
   onClose: () => void;
 }
 
-const TOPICS = [
-  { 
-    number: 1, 
-    label: 'תיאור האתגר והכאב המרכזי',
-    description: 'שאלות על איפה בדיוק "כואב" בפירוק HLD, איך האתגר מתבטא בשטח ולמה זה קורה'
-  },
-  { 
-    number: 2, 
-    label: 'השפעה עסקית ומיקודים ארגוניים',
-    description: 'שאלות על מיקודים עסקיים שנפגעים, הפגיעות המשמעותיות והעלות העסקית של פירוק לא טוב'
-  },
-  { 
-    number: 3, 
-    label: 'קהל יעד, היקף ותלותים',
-    description: 'שאלות על צרכני הפירוק, היקף המדורים, תדירות, סוגי פרויקטים בעייתיים וצווארי בקבוק'
-  },
-  { 
-    number: 4, 
-    label: 'מדדים (KPI) והשפעה מדידה',
-    description: 'שאלות על מדדים שנפגעים בפועל ויעדי השיפור הרצויים'
-  },
-  { 
-    number: 5, 
-    label: 'מה נחשב הצלחה (ללא קשר ל-AI)',
-    description: 'שאלות על Definition of Ready, המינימום המספיק, גרנולריות וקריטריוני אישור'
-  },
-  { 
-    number: 6, 
-    label: 'דאטה, כלים ותשתית תומכת',
-    description: 'שאלות על כלי Backlog, שמירת HLD, תבניות, אוצר מילים אחיד ומגבלות מידע'
-  },
-  { 
-    number: 7, 
-    label: 'מורכבות, סיכונים ושינוי ארגוני',
-    description: 'שאלות על Audit Trail, אחידות בין מדורים, Scope Churn, תלויות חיצוניות והתנגדות ארגונית'
-  },
-  { 
-    number: 8, 
-    label: 'Best Practices וצעדי המשך',
-    description: 'שאלות על Best Practices, פיילוט, תבניות אחידות, Workflow של Review/Approval ותוצרים נדרשים'
-  },
-];
-
 const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModalProps) => {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
   const [error, setError] = useState('');
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -64,7 +23,20 @@ const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModal
 
   useEffect(() => {
     loadQuestions();
+    loadTopics();
   }, [challenge._id]);
+
+  const loadTopics = async () => {
+    try {
+      setIsLoadingTopics(true);
+      const data = await topicsAPI.list();
+      setTopics(data);
+    } catch (err: any) {
+      console.error('Error loading topics:', err);
+    } finally {
+      setIsLoadingTopics(false);
+    }
+  };
 
   const loadQuestions = async () => {
     try {
@@ -80,7 +52,7 @@ const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModal
   };
 
   const getTopicLabel = (topicNumber: number) => {
-    const topic = TOPICS.find((t) => t.number === topicNumber);
+    const topic = topics.find((t) => t.number === topicNumber);
     return topic ? `נושא ${topicNumber}: ${topic.label}` : `נושא ${topicNumber}`;
   };
 
@@ -160,7 +132,7 @@ const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModal
     }
   };
 
-  const availableTopics = TOPICS.filter((t) => challenge.topicNumbers.includes(t.number));
+  const availableTopics = topics.filter((t) => challenge.topicNumbers.includes(t.number));
 
   return (
     <div className="modal-overlay" onClick={onClose}>
