@@ -159,6 +159,38 @@
 .topic-description {
   color: #666;
   line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.topic-example-questions {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.topic-example-questions strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 13px;
+}
+
+.topic-example-questions ul {
+  margin: 0;
+  padding-right: 20px;
+  list-style-type: disc;
+}
+
+.topic-example-questions li {
+  color: #666;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.topic-example-questions .more-questions {
+  font-style: italic;
+  color: #999;
 }
 
 .modal-overlay {
@@ -265,6 +297,85 @@
 
 .modal-actions button[type="button"]:hover {
   background: #ccc;
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.example-questions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.example-question-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.example-question-item textarea {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.example-question-item textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.btn-remove-question {
+  padding: 8px 12px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove-question:hover {
+  background: #c0392b;
+}
+
+.btn-remove-question:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-add-question {
+  padding: 8px 16px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  align-self: flex-start;
+}
+
+.btn-add-question:hover {
+  background: #5568d3;
+}
+
+.btn-add-question:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

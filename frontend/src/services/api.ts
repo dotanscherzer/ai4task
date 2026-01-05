@@ -53,6 +53,7 @@ export const topicsAPI = {
     number: number;
     label: string;
     description: string;
+    exampleQuestions?: string[];
   }): Promise<Topic> => {
     const response = await api.post<Topic>('/topics', data);
     return response.data;
@@ -61,6 +62,7 @@ export const topicsAPI = {
     number?: number;
     label?: string;
     description?: string;
+    exampleQuestions?: string[];
   }): Promise<Topic> => {
     const response = await api.put<Topic>(`/topics/${id}`, data);
     return response.data;

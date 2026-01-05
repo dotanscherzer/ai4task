@@ -16,6 +16,7 @@ const TopicManagement = () => {
   const [formNumber, setFormNumber] = useState<number>(1);
   const [formLabel, setFormLabel] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [formExampleQuestions, setFormExampleQuestions] = useState<string[]>(['']);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ const TopicManagement = () => {
     setFormNumber(1);
     setFormLabel('');
     setFormDescription('');
+    setFormExampleQuestions(['']);
     setShowCreateModal(true);
   };
 
@@ -47,6 +49,7 @@ const TopicManagement = () => {
     setFormNumber(topic.number);
     setFormLabel(topic.label);
     setFormDescription(topic.description);
+    setFormExampleQuestions(topic.exampleQuestions && topic.exampleQuestions.length > 0 ? topic.exampleQuestions : ['']);
     setShowCreateModal(true);
   };
 
@@ -70,6 +73,9 @@ const TopicManagement = () => {
       return;
     }
 
+    // Filter out empty example questions
+    const exampleQuestions = formExampleQuestions.filter(q => q.trim().length > 0);
+
     setIsSubmitting(true);
     try {
       if (editingTopic) {
@@ -77,12 +83,14 @@ const TopicManagement = () => {
           number: formNumber,
           label: formLabel,
           description: formDescription,
+          exampleQuestions: exampleQuestions.length > 0 ? exampleQuestions : undefined,
         });
       } else {
         await topicsAPI.create({
           number: formNumber,
           label: formLabel,
           description: formDescription,
+          exampleQuestions: exampleQuestions.length > 0 ? exampleQuestions : undefined,
         });
       }
       setShowCreateModal(false);
@@ -92,6 +100,22 @@ const TopicManagement = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleAddExampleQuestion = () => {
+    setFormExampleQuestions([...formExampleQuestions, '']);
+  };
+
+  const handleRemoveExampleQuestion = (index: number) => {
+    if (formExampleQuestions.length > 1) {
+      setFormExampleQuestions(formExampleQuestions.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleExampleQuestionChange = (index: number, value: string) => {
+    const updated = [...formExampleQuestions];
+    updated[index] = value;
+    setFormExampleQuestions(updated);
   };
 
   return (
@@ -143,6 +167,19 @@ const TopicManagement = () => {
                     </div>
                   </div>
                   <p className="topic-description">{topic.description}</p>
+                  {topic.exampleQuestions && topic.exampleQuestions.length > 0 && (
+                    <div className="topic-example-questions">
+                      <strong>שאלות לדוגמא ({topic.exampleQuestions.length}):</strong>
+                      <ul>
+                        {topic.exampleQuestions.slice(0, 3).map((q, i) => (
+                          <li key={i}>{q}</li>
+                        ))}
+                        {topic.exampleQuestions.length > 3 && (
+                          <li className="more-questions">ועוד {topic.exampleQuestions.length - 3} שאלות...</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -196,6 +233,42 @@ const TopicManagement = () => {
                   disabled={isSubmitting}
                   rows={4}
                 />
+              </div>
+
+              <div className="form-group">
+                <label>שאלות לדוגמא (אופציונלי)</label>
+                <p className="form-hint">שאלות אלה ישמשו את ה-AI כהשראה בעת יצירת שאלות לאתגרים. השתמש בהן כדי להדריך את ה-AI על איזה סוג שאלות אתה מצפה.</p>
+                <div className="example-questions-list">
+                  {formExampleQuestions.map((question, index) => (
+                    <div key={index} className="example-question-item">
+                      <textarea
+                        value={question}
+                        onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
+                        disabled={isSubmitting}
+                        rows={2}
+                        placeholder="הזן שאלה לדוגמא..."
+                      />
+                      {formExampleQuestions.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExampleQuestion(index)}
+                          disabled={isSubmitting}
+                          className="btn-remove-question"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={handleAddExampleQuestion}
+                    disabled={isSubmitting}
+                    className="btn-add-question"
+                  >
+                    + הוסף שאלה לדוגמא
+                  </button>
+                </div>
               </div>
 
               <div className="modal-actions">

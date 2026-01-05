@@ -24,6 +24,7 @@ export class TopicService {
     number: number;
     label: string;
     description: string;
+    exampleQuestions?: string[];
   }): Promise<any> {
     // Check if topic number already exists
     const existingTopic = await Topic.findOne({ number: data.number });
@@ -31,10 +32,21 @@ export class TopicService {
       throw new Error(`Topic with number ${data.number} already exists`);
     }
 
+    // Validate exampleQuestions if provided
+    if (data.exampleQuestions !== undefined) {
+      if (!Array.isArray(data.exampleQuestions)) {
+        throw new Error('exampleQuestions must be an array');
+      }
+      if (!data.exampleQuestions.every(q => typeof q === 'string')) {
+        throw new Error('All exampleQuestions must be strings');
+      }
+    }
+
     const topic = new Topic({
       number: data.number,
       label: data.label,
       description: data.description,
+      exampleQuestions: data.exampleQuestions || [],
     });
 
     await topic.save();
@@ -45,6 +57,7 @@ export class TopicService {
     number?: number;
     label?: string;
     description?: string;
+    exampleQuestions?: string[];
   }): Promise<any | null> {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return null;
@@ -63,10 +76,21 @@ export class TopicService {
       }
     }
 
+    // Validate exampleQuestions if provided
+    if (data.exampleQuestions !== undefined) {
+      if (!Array.isArray(data.exampleQuestions)) {
+        throw new Error('exampleQuestions must be an array');
+      }
+      if (!data.exampleQuestions.every(q => typeof q === 'string')) {
+        throw new Error('All exampleQuestions must be strings');
+      }
+    }
+
     // Update fields
     if (data.number !== undefined) topic.number = data.number;
     if (data.label !== undefined) topic.label = data.label;
     if (data.description !== undefined) topic.description = data.description;
+    if (data.exampleQuestions !== undefined) topic.exampleQuestions = data.exampleQuestions;
 
     await topic.save();
     return topic.toObject();

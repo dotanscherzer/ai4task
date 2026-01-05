@@ -185,7 +185,7 @@ export class LLMService {
   async generateQuestionsForChallenge(
     challengeName: string,
     challengeDescription: string,
-    topic: { number: number; label: string; description: string }
+    topic: { number: number; label: string; description: string; exampleQuestions?: string[] }
   ): Promise<string[]> {
     console.log(`   🔧 LLM Service: Starting question generation for topic ${topic.number}`);
     console.log(`   📋 Challenge: "${challengeName}"`);
@@ -214,7 +214,7 @@ export class LLMService {
           await new Promise(resolve => setTimeout(resolve, delay));
         }
 
-        const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
+        const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic, topic.exampleQuestions || []);
         const systemInstruction = 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.';
         
         console.log(`   📤 Sending request to OpenRouter (attempt ${attempt}/${maxRetries})...`);
@@ -441,11 +441,20 @@ export class LLMService {
   private buildQuestionGenerationPrompt(
     challengeName: string,
     challengeDescription: string,
-    topic: { number: number; label: string; description: string }
+    topic: { number: number; label: string; description: string },
+    exampleQuestions: string[] = []
   ): string {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:441',message:'Building prompt for challenge',data:{challengeName,challengeDescription,topicNumber:topic.number,topicLabel:topic.label},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:441',message:'Building prompt for challenge',data:{challengeName,challengeDescription,topicNumber:topic.number,topicLabel:topic.label,exampleQuestionsCount:exampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
+    
+    let exampleQuestionsSection = '';
+    if (exampleQuestions.length > 0) {
+      exampleQuestionsSection = `\nשאלות לדוגמא לנושא זה (השתמש בהן כהשראה, אל תחזור עליהן בדיוק):
+${exampleQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+`;
+    }
     
     return `צור 3-4 שאלות מנחות בעברית עבור ריאיון בנושא פירוק HLD ל-Epics/Features/Stories.
 
@@ -458,22 +467,24 @@ export class LLMService {
 נושא:
 מספר: ${topic.number}
 כותרת: ${topic.label}
-תיאור: ${topic.description}
-
-הנחיות:
-- השאלות צריכות להיות רלוונטיות **רק** לאתגר "${challengeName}" שתואר לעיל
-- השאלות צריכות להיות קצרות, מקצועיות ומנחות
+תיאור הנושא: ${topic.description}
+${exampleQuestionsSection}הנחיות חשובות:
+- השאלות חייבות להיות רלוונטיות **רק** לאתגר "${challengeName}" שתואר לעיל
+- השאלות חייבות להיות רלוונטיות **לנושא** "${topic.label}" ולקחת בחשבון את תיאור הנושא: "${topic.description}"
+- השאלות צריכות להיות קצרות, מקצועיות, מובנות והגיוניות
 - השאלות צריכות להיות בעברית
-- השאלות צריכות לעזור להבין את האתגר "${challengeName}" מנקודת המבט של הנושא
-- כל שאלה צריכה להיות שונה וחדשה
+- השאלות צריכות לעזור להבין את האתגר "${challengeName}" מנקודת המבט של הנושא "${topic.label}"
+- כל שאלה צריכה להיות שונה וחדשה - אל תחזור על שאלות קיימות
 - **אל תכלול מידע מאתגרים אחרים**
+${exampleQuestions.length > 0 ? '- השתמש בשאלות לדוגמא כהשראה, אך צור שאלות חדשות וספציפיות לאתגר הזה' : ''}
+- ודא שהשאלות הגיוניות ומובנות - שאלות לא ברורות או לא רלוונטיות לא יתקבלו
 
 החזר JSON בפורמט:
 {
   "questions": ["שאלה 1", "שאלה 2", "שאלה 3", "שאלה 4"]
 }
 
-החזר בדיוק 3-4 שאלות.`;
+החזר בדיוק 3-4 שאלות חדשות, רלוונטיות, מובנות והגיוניות.`;
   }
 }
 

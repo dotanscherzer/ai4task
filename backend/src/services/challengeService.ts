@@ -76,6 +76,7 @@ export class ChallengeService {
               number: topic.number,
               label: topic.label,
               description: topic.description,
+              exampleQuestions: topic.exampleQuestions || [],
             }
           );
 
@@ -230,6 +231,7 @@ export class ChallengeService {
                   number: topic.number,
                   label: topic.label,
                   description: topic.description,
+                  exampleQuestions: topic.exampleQuestions || [],
                 }
               );
 

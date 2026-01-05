@@ -46,7 +46,7 @@ router.get('/number/:number', async (req: AuthRequest, res: Response) => {
 
 router.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const { number, label, description } = req.body;
+    const { number, label, description, exampleQuestions } = req.body;
 
     if (!number || !label || !description) {
       return res.status(400).json({ error: 'number, label, and description are required' });
@@ -56,10 +56,15 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'number must be a positive integer' });
     }
 
+    if (exampleQuestions !== undefined && !Array.isArray(exampleQuestions)) {
+      return res.status(400).json({ error: 'exampleQuestions must be an array' });
+    }
+
     const topic = await topicService.createTopic({
       number,
       label,
       description,
+      exampleQuestions,
     });
 
     res.status(201).json(topic);
@@ -73,7 +78,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
-    const { number, label, description } = req.body;
+    const { number, label, description, exampleQuestions } = req.body;
 
     const updateData: any = {};
     if (number !== undefined) {
@@ -84,6 +89,12 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     }
     if (label !== undefined) updateData.label = label;
     if (description !== undefined) updateData.description = description;
+    if (exampleQuestions !== undefined) {
+      if (!Array.isArray(exampleQuestions)) {
+        return res.status(400).json({ error: 'exampleQuestions must be an array' });
+      }
+      updateData.exampleQuestions = exampleQuestions;
+    }
 
     const topic = await topicService.updateTopic(req.params.id, updateData);
     if (!topic) {

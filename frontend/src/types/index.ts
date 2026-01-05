@@ -3,6 +3,7 @@ export interface Topic {
   number: number;
   label: string;
   description: string;
+  exampleQuestions?: string[];
   createdAt: string;
   updatedAt: string;
 }
