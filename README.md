@@ -53,7 +53,7 @@ npm run seed
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/interview-bot
 JWT_SECRET=your-secret-key-here
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-pro
 RESEND_API_KEY=your-resend-api-key
 FROM_EMAIL=Challenge Bot <noreply@yourdomain.com>
 ADMIN_EMAIL=dotan.scherzer@gmail.com
