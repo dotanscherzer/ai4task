@@ -45,9 +45,6 @@ const TopicManagement = () => {
   };
 
   const handleEdit = (topic: Topic) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:47',message:'handleEdit called',data:{topicId:topic._id,exampleQuestions:topic.exampleQuestions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     setEditingTopic(topic);
     setFormNumber(topic.number);
     setFormLabel(topic.label);
@@ -70,9 +67,6 @@ const TopicManagement = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:69',message:'handleSubmit called',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     e.preventDefault();
     if (!formLabel || !formDescription || !formNumber || formNumber <= 0) {
       alert('נא למלא את כל השדות');
@@ -111,15 +105,7 @@ const TopicManagement = () => {
   const handleAddExampleQuestion = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // #region agent log
-    console.log('[DEBUG] handleAddExampleQuestion called', { currentState: formExampleQuestions, length: formExampleQuestions.length });
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:111',message:'handleAddExampleQuestion called',data:{currentState:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
-    // #endregion
     const newQuestions = [...formExampleQuestions, ''];
-    // #region agent log
-    console.log('[DEBUG] handleAddExampleQuestion - new state', { newQuestions, length: newQuestions.length });
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:115',message:'handleAddExampleQuestion - new state',data:{newQuestions:newQuestions,length:newQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
-    // #endregion
     setFormExampleQuestions(newQuestions);
   };
 
@@ -133,15 +119,9 @@ const TopicManagement = () => {
   };
 
   const handleExampleQuestionChange = (index: number, value: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:118',message:'handleExampleQuestionChange called',data:{index:index,value:value.substring(0,30),currentState:formExampleQuestions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     setFormExampleQuestions((prev) => {
       const updated = [...prev];
       updated[index] = value;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:123',message:'handleExampleQuestionChange - state updated',data:{index:index,updatedState:updated,updatedLength:updated.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return updated;
     });
   };
@@ -267,27 +247,16 @@ const TopicManagement = () => {
                 <label>שאלות לדוגמא (אופציונלי)</label>
                 <p className="form-hint">שאלות אלה ישמשו את ה-AI כהשראה בעת יצירת שאלות לאתגרים. השתמש בהן כדי להדריך את ה-AI על איזה סוג שאלות אתה מצפה.</p>
                 <div className="example-questions-list">
-                  {/* #region agent log */}
-                  {(() => {
-                    console.log('[DEBUG] Rendering example questions list', { formExampleQuestions, length: formExampleQuestions.length, questions: formExampleQuestions.map((q, i) => ({ index: i, value: q.substring(0, 20) })) });
-                    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:247',message:'Rendering example questions list',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length,questions:formExampleQuestions.map((q,i)=>({index:i,value:q.substring(0,20)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch((e)=>console.error('[DEBUG] Log fetch error:',e));
-                    return null;
-                  })()}
-                  {/* #endregion */}
-                  {formExampleQuestions.map((question, index) => {
-                    // #region agent log
-                    console.log(`[DEBUG] Rendering question ${index}`, { index, question, questionLength: question.length });
-                    // #endregion
-                    return (
-                      <div key={`example-question-${index}`} className="example-question-item">
-                        <textarea
-                          value={question}
-                          onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
-                          disabled={isSubmitting}
-                          rows={2}
-                          placeholder="הזן שאלה לדוגמא..."
-                          style={{ border: '1px solid #ddd', background: 'white', color: '#333' }}
-                        />
+                  {formExampleQuestions.map((question, index) => (
+                    <div key={`example-question-${index}`} className="example-question-item" style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', width: '100%' }}>
+                      <textarea
+                        value={question}
+                        onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
+                        disabled={isSubmitting}
+                        rows={2}
+                        placeholder="הזן שאלה לדוגמא..."
+                        style={{ flex: 1, minWidth: '200px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px', fontFamily: 'inherit', resize: 'vertical', background: 'white', color: '#333' }}
+                      />
                       {formExampleQuestions.length > 1 && (
                         <button
                           type="button"
@@ -298,9 +267,8 @@ const TopicManagement = () => {
                           ×
                         </button>
                       )}
-                      </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                   <button
                     type="button"
                     onClick={(e) => handleAddExampleQuestion(e)}
