@@ -12,7 +12,6 @@ const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModal
   const [questions, setQuestions] = useState<Question[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
   const [error, setError] = useState('');
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
@@ -28,13 +27,10 @@ const ChallengeQuestionsModal = ({ challenge, onClose }: ChallengeQuestionsModal
 
   const loadTopics = async () => {
     try {
-      setIsLoadingTopics(true);
       const data = await topicsAPI.list();
       setTopics(data);
     } catch (err: any) {
       console.error('Error loading topics:', err);
-    } finally {
-      setIsLoadingTopics(false);
     }
   };
 
