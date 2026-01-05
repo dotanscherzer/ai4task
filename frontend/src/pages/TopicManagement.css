@@ -321,11 +321,12 @@
 .example-question-item textarea {
   flex: 1;
   padding: 8px;
-  border: 1px solid #ddd;
+  border: 1px solid #ddd !important;
   border-radius: 4px;
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
+  background: white !important;
 }
 
 .example-question-item textarea:focus {
