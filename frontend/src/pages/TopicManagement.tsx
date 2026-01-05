@@ -286,6 +286,7 @@ const TopicManagement = () => {
                           disabled={isSubmitting}
                           rows={2}
                           placeholder="הזן שאלה לדוגמא..."
+                          style={{ border: '1px solid #ddd', background: 'white', color: '#333' }}
                         />
                       {formExampleQuestions.length > 1 && (
                         <button
