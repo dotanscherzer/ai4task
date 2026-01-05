@@ -103,19 +103,24 @@ const TopicManagement = () => {
   };
 
   const handleAddExampleQuestion = () => {
-    setFormExampleQuestions([...formExampleQuestions, '']);
+    setFormExampleQuestions((prev) => [...prev, '']);
   };
 
   const handleRemoveExampleQuestion = (index: number) => {
-    if (formExampleQuestions.length > 1) {
-      setFormExampleQuestions(formExampleQuestions.filter((_, i) => i !== index));
-    }
+    setFormExampleQuestions((prev) => {
+      if (prev.length > 1) {
+        return prev.filter((_, i) => i !== index);
+      }
+      return prev;
+    });
   };
 
   const handleExampleQuestionChange = (index: number, value: string) => {
-    const updated = [...formExampleQuestions];
-    updated[index] = value;
-    setFormExampleQuestions(updated);
+    setFormExampleQuestions((prev) => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
   };
 
   return (
@@ -240,7 +245,7 @@ const TopicManagement = () => {
                 <p className="form-hint">שאלות אלה ישמשו את ה-AI כהשראה בעת יצירת שאלות לאתגרים. השתמש בהן כדי להדריך את ה-AI על איזה סוג שאלות אתה מצפה.</p>
                 <div className="example-questions-list">
                   {formExampleQuestions.map((question, index) => (
-                    <div key={index} className="example-question-item">
+                    <div key={`example-question-${index}-${question.substring(0, 10)}`} className="example-question-item">
                       <textarea
                         value={question}
                         onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
