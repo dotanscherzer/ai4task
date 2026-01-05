@@ -47,12 +47,12 @@ export class ChallengeService {
       }
 
       // Check if LLM API key is configured
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = process.env.OPENROUTER_API_KEY;
       const hasLLMKey = !!apiKey;
-      console.log(`🔑 GEMINI_API_KEY status: ${hasLLMKey ? 'SET' : 'NOT SET'}${hasLLMKey ? ` (length: ${apiKey?.length || 0})` : ''}`);
+      console.log(`🔑 OPENROUTER_API_KEY status: ${hasLLMKey ? 'SET' : 'NOT SET'}${hasLLMKey ? ` (length: ${apiKey?.length || 0})` : ''}`);
       
       if (!hasLLMKey) {
-        console.warn('⚠️ GEMINI_API_KEY not set. Questions will not be generated automatically.');
+        console.warn('⚠️ OPENROUTER_API_KEY not set. Questions will not be generated automatically.');
         console.warn('⚠️ Challenge created successfully, but no questions were generated.');
         // Continue - challenge is created, but without questions
       }
@@ -129,7 +129,7 @@ export class ChallengeService {
         console.warn(`   Topics processed: ${topics.length}`);
         console.warn(`   Failed topics: ${failedTopics}`);
         if (!hasLLMKey) {
-          console.warn(`   Reason: GEMINI_API_KEY is not set`);
+          console.warn(`   Reason: OPENROUTER_API_KEY is not set`);
         } else {
           console.warn(`   Reason: LLM did not return any questions (check LLM service logs for details)`);
         }

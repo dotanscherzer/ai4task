@@ -49,16 +49,17 @@ export class LLMService {
   private baseUrl: string;
 
   constructor() {
-    const rawKey = process.env.GEMINI_API_KEY || '';
+    const rawKey = process.env.OPENROUTER_API_KEY || '';
     this.apiKey = rawKey.trim();
-    this.model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-    this.baseUrl = `https://generativelanguage.googleapis.com/v1/models/${this.model}:generateContent`;
+    this.model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+    this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
     if (!this.apiKey) {
-      console.warn('⚠️ GEMINI_API_KEY not set. LLM features will not work.');
+      console.warn('⚠️ OPENROUTER_API_KEY not set. LLM features will not work.');
     } else {
-      console.log(`✅ GEMINI_API_KEY loaded successfully (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
+      console.log(`✅ OPENROUTER_API_KEY loaded successfully (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
       console.log(`   Model: ${this.model}`);
+      console.log(`   Base URL: ${this.baseUrl}`);
     }
   }
 
@@ -73,33 +74,35 @@ export class LLMService {
 
     try {
       const userPrompt = this.buildUserPrompt(managerMessage, action, context);
-      
-      // Combine system prompt with user prompt for Gemini
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n${userPrompt}`;
 
       const response = await axios.post(
-        `${this.baseUrl}?key=${this.apiKey}`,
+        this.baseUrl,
         {
-          contents: [
+          model: this.model,
+          messages: [
             {
-              parts: [
-                { text: fullPrompt }
-              ]
+              role: 'system',
+              content: SYSTEM_PROMPT
+            },
+            {
+              role: 'user',
+              content: userPrompt
             }
           ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048
-          }
+          temperature: 0.7,
+          max_tokens: 2048
         },
         {
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.apiKey}`,
+            'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
+            'X-Title': 'Interview Bot'
           },
         }
       );
 
-      let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+      let content = response.data.choices?.[0]?.message?.content;
       if (!content) {
         throw new Error('No content in LLM response');
       }
@@ -168,7 +171,7 @@ export class LLMService {
     console.log(`      Base URL: ${this.baseUrl}`);
     
     if (!this.apiKey) {
-      console.warn(`   ⚠️ GEMINI_API_KEY not set. Cannot generate questions for topic ${topic.number}.`);
+      console.warn(`   ⚠️ OPENROUTER_API_KEY not set. Cannot generate questions for topic ${topic.number}.`);
       return [];
     }
 
@@ -186,32 +189,37 @@ export class LLMService {
 
         const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
         const systemInstruction = 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.';
-        const fullPrompt = `${systemInstruction}\n\n${prompt}`;
         
-        console.log(`   📤 Sending request to Gemini (attempt ${attempt}/${maxRetries})...`);
-        console.log(`      Prompt length: ${fullPrompt.length} characters`);
+        console.log(`   📤 Sending request to OpenRouter (attempt ${attempt}/${maxRetries})...`);
+        console.log(`      Prompt length: ${prompt.length} characters`);
         console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
         console.log(`      Topic: ${topic.number} - ${topic.label}`);
 
         const startTime = Date.now();
         const response = await axios.post(
-          `${this.baseUrl}?key=${this.apiKey}`,
+          this.baseUrl,
           {
-            contents: [
+            model: this.model,
+            messages: [
               {
-                parts: [
-                  { text: fullPrompt }
-                ]
+                role: 'system',
+                content: systemInstruction
+              },
+              {
+                role: 'user',
+                content: prompt
               }
             ],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 2048
-            }
+            temperature: 0.7,
+            max_tokens: 2048,
+            response_format: { type: 'json_object' }
           },
           {
             headers: {
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.apiKey}`,
+              'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
+              'X-Title': 'Interview Bot'
             },
           }
         );
@@ -219,7 +227,7 @@ export class LLMService {
         console.log(`   ⏱️ LLM request completed in ${duration}ms`);
         console.log(`   📥 Response status: ${response.status}`);
 
-        let content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+        let content = response.data.choices?.[0]?.message?.content;
         if (!content) {
           console.error(`   ❌ No content in LLM response`);
           console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
