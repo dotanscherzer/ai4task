@@ -45,6 +45,9 @@ const TopicManagement = () => {
   };
 
   const handleEdit = (topic: Topic) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:47',message:'handleEdit called',data:{topicId:topic._id,exampleQuestions:topic.exampleQuestions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     setEditingTopic(topic);
     setFormNumber(topic.number);
     setFormLabel(topic.label);
@@ -67,6 +70,9 @@ const TopicManagement = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:69',message:'handleSubmit called',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     e.preventDefault();
     if (!formLabel || !formDescription || !formNumber || formNumber <= 0) {
       alert('נא למלא את כל השדות');
@@ -103,7 +109,19 @@ const TopicManagement = () => {
   };
 
   const handleAddExampleQuestion = () => {
-    setFormExampleQuestions((prev) => [...prev, '']);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:105',message:'handleAddExampleQuestion called',data:{currentState:formExampleQuestions,length:formExampleQuestions.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    setFormExampleQuestions((prev) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:107',message:'setFormExampleQuestions callback - before update',data:{prevState:prev,prevLength:prev.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      const newState = [...prev, ''];
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:111',message:'setFormExampleQuestions callback - after update',data:{newState:newState,newLength:newState.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      return newState;
+    });
   };
 
   const handleRemoveExampleQuestion = (index: number) => {
@@ -116,9 +134,15 @@ const TopicManagement = () => {
   };
 
   const handleExampleQuestionChange = (index: number, value: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:118',message:'handleExampleQuestionChange called',data:{index:index,value:value.substring(0,30),currentState:formExampleQuestions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     setFormExampleQuestions((prev) => {
       const updated = [...prev];
       updated[index] = value;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:123',message:'handleExampleQuestionChange - state updated',data:{index:index,updatedState:updated,updatedLength:updated.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       return updated;
     });
   };
@@ -244,6 +268,12 @@ const TopicManagement = () => {
                 <label>שאלות לדוגמא (אופציונלי)</label>
                 <p className="form-hint">שאלות אלה ישמשו את ה-AI כהשראה בעת יצירת שאלות לאתגרים. השתמש בהן כדי להדריך את ה-AI על איזה סוג שאלות אתה מצפה.</p>
                 <div className="example-questions-list">
+                  {/* #region agent log */}
+                  {(() => {
+                    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TopicManagement.tsx:247',message:'Rendering example questions list',data:{formExampleQuestions:formExampleQuestions,length:formExampleQuestions.length,questions:formExampleQuestions.map((q,i)=>({index:i,value:q.substring(0,20)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    return null;
+                  })()}
+                  {/* #endregion */}
                   {formExampleQuestions.map((question, index) => (
                     <div key={`example-question-${index}-${question.substring(0, 10)}`} className="example-question-item">
                       <textarea
