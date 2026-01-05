@@ -274,15 +274,19 @@ const TopicManagement = () => {
                     return null;
                   })()}
                   {/* #endregion */}
-                  {formExampleQuestions.map((question, index) => (
-                    <div key={`example-question-${index}`} className="example-question-item">
-                      <textarea
-                        value={question}
-                        onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
-                        disabled={isSubmitting}
-                        rows={2}
-                        placeholder="הזן שאלה לדוגמא..."
-                      />
+                  {formExampleQuestions.map((question, index) => {
+                    // #region agent log
+                    console.log(`[DEBUG] Rendering question ${index}`, { index, question, questionLength: question.length });
+                    // #endregion
+                    return (
+                      <div key={`example-question-${index}`} className="example-question-item">
+                        <textarea
+                          value={question}
+                          onChange={(e) => handleExampleQuestionChange(index, e.target.value)}
+                          disabled={isSubmitting}
+                          rows={2}
+                          placeholder="הזן שאלה לדוגמא..."
+                        />
                       {formExampleQuestions.length > 1 && (
                         <button
                           type="button"
@@ -293,8 +297,9 @@ const TopicManagement = () => {
                           ×
                         </button>
                       )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={(e) => handleAddExampleQuestion(e)}
