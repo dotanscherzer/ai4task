@@ -60,10 +60,10 @@ async function migrateChallenges() {
     // Step 3: Generate questions for challenges without questions
     console.log('🚀 Generating questions for challenges without questions...\n');
 
-    const hasLLMKey = !!process.env.OPENROUTER_API_KEY;
+    const hasLLMKey = !!process.env.GEMINI_API_KEY;
     if (!hasLLMKey) {
-      console.log('⚠️ OPENROUTER_API_KEY not set. Cannot generate questions automatically.');
-      console.log('   Please set OPENROUTER_API_KEY in your .env file and run this script again.');
+      console.log('⚠️ GEMINI_API_KEY not set. Cannot generate questions automatically.');
+      console.log('   Please set GEMINI_API_KEY in your .env file and run this script again.');
       process.exit(1);
     }
 

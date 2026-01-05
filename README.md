@@ -7,7 +7,7 @@
 - **Frontend**: React + TypeScript + Vite (פריסה ב-Netlify)
 - **Backend**: Node.js + Express + TypeScript (פריסה ב-Render)
 - **Database**: MongoDB Atlas
-- **AI**: OpenRouter (Claude 3.5 Sonnet)
+- **AI**: Google Gemini (Gemini 1.5 Flash)
 - **Email**: Resend
 
 ## התקנה והרצה מקומית
@@ -52,8 +52,8 @@ npm run seed
 ```
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/interview-bot
 JWT_SECRET=your-secret-key-here
-OPENROUTER_API_KEY=your-openrouter-api-key
-OPENROUTER_MODEL=anthropic/claude-3.5-sonnet
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-1.5-flash
 RESEND_API_KEY=your-resend-api-key
 FROM_EMAIL=Challenge Bot <noreply@yourdomain.com>
 ADMIN_EMAIL=dotan.scherzer@gmail.com
@@ -152,7 +152,7 @@ interview-bot/
 
 ## תכונות
 
-- ✅ צ'אט AI חכם עם OpenRouter
+- ✅ צ'אט AI חכם עם Google Gemini
 - ✅ ניהול ראיונות מלא
 - ✅ שליחת מייל סיכום
 - ✅ תמיכה מלאה ב-RTL

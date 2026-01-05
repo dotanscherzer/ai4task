@@ -46,24 +46,19 @@ const SYSTEM_PROMPT = `אתה בוט מראיין בעברית (RTL) עבור מ
 export class LLMService {
   private apiKey: string;
   private model: string;
-  private baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  private baseUrl: string;
 
   constructor() {
-    const rawKey = process.env.OPENROUTER_API_KEY || '';
+    const rawKey = process.env.GEMINI_API_KEY || '';
     this.apiKey = rawKey.trim();
-    this.model = process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet';
+    this.model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
 
     if (!this.apiKey) {
-      console.warn('⚠️ OPENROUTER_API_KEY not set. LLM features will not work.');
+      console.warn('⚠️ GEMINI_API_KEY not set. LLM features will not work.');
     } else {
-      // Validate API key format
-      const isValidFormat = this.apiKey.startsWith('sk-or-v1-') || this.apiKey.startsWith('sk-or-');
-      if (!isValidFormat) {
-        console.warn('⚠️ OPENROUTER_API_KEY does not start with expected format (sk-or-v1- or sk-or-).');
-        console.warn(`   Key starts with: ${this.apiKey.substring(0, 10)}...`);
-      } else {
-        console.log(`✅ OPENROUTER_API_KEY loaded successfully (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
-      }
+      console.log(`✅ GEMINI_API_KEY loaded successfully (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
+      console.log(`   Model: ${this.model}`);
     }
   }
 
@@ -78,28 +73,34 @@ export class LLMService {
 
     try {
       const userPrompt = this.buildUserPrompt(managerMessage, action, context);
+      
+      // Combine system prompt with user prompt for Gemini
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n${userPrompt}`;
 
       const response = await axios.post(
-        this.baseUrl,
+        `${this.baseUrl}?key=${this.apiKey}`,
         {
-          model: this.model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: userPrompt },
+          contents: [
+            {
+              parts: [
+                { text: fullPrompt }
+              ]
+            }
           ],
-          response_format: { type: 'json_object' },
-          temperature: 0.7,
-          max_tokens: 2048, // Limit tokens to reduce costs
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+            responseMimeType: 'application/json'
+          }
         },
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
         }
       );
 
-      const content = response.data.choices[0]?.message?.content;
+      const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!content) {
         throw new Error('No content in LLM response');
       }
@@ -152,8 +153,6 @@ export class LLMService {
     console.log(`   🔧 LLM Service: Starting question generation for topic ${topic.number}`);
     if (this.apiKey) {
       console.log(`      API Key: SET (length: ${this.apiKey.length}, prefix: ${this.apiKey.substring(0, 10)}...)`);
-      const isValidFormat = this.apiKey.startsWith('sk-or-v1-') || this.apiKey.startsWith('sk-or-');
-      console.log(`      API Key format: ${isValidFormat ? '✅ Valid' : '⚠️ Unexpected format'}`);
     } else {
       console.log(`      API Key: NOT SET`);
     }
@@ -161,36 +160,41 @@ export class LLMService {
     console.log(`      Base URL: ${this.baseUrl}`);
     
     if (!this.apiKey) {
-      console.warn(`   ⚠️ OPENROUTER_API_KEY not set. Cannot generate questions for topic ${topic.number}.`);
+      console.warn(`   ⚠️ GEMINI_API_KEY not set. Cannot generate questions for topic ${topic.number}.`);
       return [];
     }
 
     try {
       const prompt = this.buildQuestionGenerationPrompt(challengeName, challengeDescription, topic);
-      console.log(`   📤 Sending request to LLM...`);
-      console.log(`      Prompt length: ${prompt.length} characters`);
+      
+      // Combine system instruction with prompt for Gemini
+      const systemInstruction = 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.';
+      const fullPrompt = `${systemInstruction}\n\n${prompt}`;
+      
+      console.log(`   📤 Sending request to Gemini...`);
+      console.log(`      Prompt length: ${fullPrompt.length} characters`);
       console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
       console.log(`      Topic: ${topic.number} - ${topic.label}`);
 
       const startTime = Date.now();
       const response = await axios.post(
-        this.baseUrl,
+        `${this.baseUrl}?key=${this.apiKey}`,
         {
-          model: this.model,
-          messages: [
+          contents: [
             {
-              role: 'system',
-              content: 'אתה עוזר ליצור שאלות מנחות עבור ריאיון. החזר רק JSON עם מערך של 3-4 שאלות בעברית.',
-            },
-            { role: 'user', content: prompt },
+              parts: [
+                { text: fullPrompt }
+              ]
+            }
           ],
-          response_format: { type: 'json_object' },
-          temperature: 0.7,
-          max_tokens: 1024, // Limit tokens to reduce costs (enough for 3-4 questions)
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+            responseMimeType: 'application/json'
+          }
         },
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
         }
@@ -199,7 +203,7 @@ export class LLMService {
       console.log(`   ⏱️ LLM request completed in ${duration}ms`);
       console.log(`   📥 Response status: ${response.status}`);
 
-      const content = response.data.choices[0]?.message?.content;
+      const content = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!content) {
         console.error(`   ❌ No content in LLM response`);
         console.error(`      Response data: ${JSON.stringify(response.data).substring(0, 200)}...`);
