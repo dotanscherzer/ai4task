@@ -51,25 +51,68 @@ const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = fa
   }
 
   const answers = details?.answers || [];
+  const messages = details?.messages || [];
   const topicStates = details?.topicStates || [];
 
-  // Remove duplicates - keep only the first answer for each question
-  const uniqueAnswers = new Map<string, any>();
-  answers.forEach((answer: any) => {
-    const key = `${answer.topicNumber}-${answer.questionText}`;
-    if (!uniqueAnswers.has(key)) {
-      uniqueAnswers.set(key, answer);
-    }
-  });
-  const deduplicatedAnswers = Array.from(uniqueAnswers.values());
+  // Get all bot messages that are questions (including follow-ups)
+  const questionMessages = messages.filter((msg: any) => 
+    msg.role === 'bot' && msg.questionText
+  );
 
-  // Group answers by topic
-  const answersByTopic = new Map<number, any[]>();
-  deduplicatedAnswers.forEach((answer: any) => {
-    if (!answersByTopic.has(answer.topicNumber)) {
-      answersByTopic.set(answer.topicNumber, []);
+  // Create a map of questions with their follow-ups and answers
+  const questionsWithFollowUps = new Map<string, {
+    question: any;
+    followUps: Array<{ question: any; answer?: any }>;
+    answer?: any;
+  }>();
+
+  // First, add all original questions (not follow-ups) in order
+  questionMessages
+    .filter((msg: any) => !msg.isFollowUp && msg.questionText)
+    .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .forEach((msg: any) => {
+      const answer = answers.find((a: any) => a.questionText === msg.questionText);
+      questionsWithFollowUps.set(msg.questionText, {
+        question: msg,
+        followUps: [],
+        answer,
+      });
+    });
+
+  // Then, add follow-ups to their original questions
+  questionMessages
+    .filter((msg: any) => msg.isFollowUp && msg.originalQuestionText)
+    .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .forEach((msg: any) => {
+      const original = questionsWithFollowUps.get(msg.originalQuestionText);
+      if (original) {
+        const followUpAnswer = answers.find((a: any) => a.questionText === msg.questionText);
+        original.followUps.push({
+          question: msg,
+          answer: followUpAnswer,
+        });
+      }
+    });
+
+  // Group questions by topic for display
+  const questionsByTopic = new Map<number, Array<{
+    question: any;
+    followUps: Array<{ question: any; answer?: any }>;
+    answer?: any;
+  }>>();
+  questionsWithFollowUps.forEach((qData) => {
+    const topicNum = qData.question.topicNumber;
+    if (!questionsByTopic.has(topicNum)) {
+      questionsByTopic.set(topicNum, []);
     }
-    answersByTopic.get(answer.topicNumber)!.push(answer);
+    questionsByTopic.get(topicNum)!.push(qData);
+  });
+
+  // Sort questions within each topic by creation time
+  questionsByTopic.forEach((topicQuestions) => {
+    topicQuestions.sort((a, b) => 
+      new Date(a.question.createdAt).getTime() - new Date(b.question.createdAt).getTime()
+    );
   });
 
   return (
@@ -175,22 +218,51 @@ const InterviewDetails = ({ interview, onSendEmail, onClose, isSendingEmail = fa
         {activeTab === 'qa' && (
           <div>
             <h3>שאלות ותשובות לפי נושא</h3>
-            {Array.from(answersByTopic.entries()).map(([topicNumber, topicAnswers]) => (
-              <div key={topicNumber} className="topic-qa-section">
-                <h4>נושא {topicNumber}</h4>
-                {topicAnswers.map((answer: any, idx: number) => (
-                  <div key={idx} className="qa-card">
-                    <div className="question">{answer.questionText}</div>
-                    {answer.skipped ? (
-                      <div className="answer skipped">דולג</div>
-                    ) : (
-                      <div className="answer">{answer.answerText || 'ללא תשובה'}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-            {deduplicatedAnswers.length === 0 && (
+            {Array.from(questionsByTopic.entries())
+              .sort(([a], [b]) => a - b)
+              .map(([topicNumber, topicQuestions]) => (
+                <div key={topicNumber} className="topic-qa-section">
+                  <h4>נושא {topicNumber}</h4>
+                  {topicQuestions.map((qData: any, idx: number) => (
+                    <div key={idx}>
+                      <div className="qa-card">
+                        <div className="question">{qData.question.questionText}</div>
+                        {qData.answer ? (
+                          qData.answer.skipped ? (
+                            <div className="answer skipped">דולג</div>
+                          ) : (
+                            <div className="answer">{qData.answer.answerText || 'ללא תשובה'}</div>
+                          )
+                        ) : (
+                          <div className="answer skipped">ללא תשובה</div>
+                        )}
+                      </div>
+                      {/* Display follow-up questions */}
+                      {qData.followUps.length > 0 && (
+                        <div style={{ marginRight: '20px', marginTop: '10px' }}>
+                          {qData.followUps.map((followUp: any, followUpIdx: number) => (
+                            <div key={followUpIdx} className="qa-card" style={{ borderRight: '3px solid #667eea', marginTop: '10px' }}>
+                              <div className="question" style={{ fontSize: '12px', color: '#667eea' }}>
+                                <strong>שאלת המשך:</strong> {followUp.question.questionText}
+                              </div>
+                              {followUp.answer ? (
+                                followUp.answer.skipped ? (
+                                  <div className="answer skipped" style={{ fontSize: '11px' }}>דולג</div>
+                                ) : (
+                                  <div className="answer" style={{ fontSize: '11px' }}>{followUp.answer.answerText || 'ללא תשובה'}</div>
+                                )
+                              ) : (
+                                <div className="answer skipped" style={{ fontSize: '11px' }}>ללא תשובה</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            {questionsWithFollowUps.size === 0 && (
               <div className="empty-state">אין תשובות עדיין</div>
             )}
           </div>

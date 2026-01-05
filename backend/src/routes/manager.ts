@@ -139,12 +139,22 @@ router.post('/state', async (req: Request, res: Response) => {
 
     // Get answers for progress
     const answers = await Answer.find({ interviewId }).lean();
-    // Count unique questions (to avoid counting duplicates)
+    // Create set of valid question texts from questions array
+    const questionTexts = new Set(
+      questions
+        .filter((q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled)
+        .map((q: any) => q.questionText)
+    );
+    // Count unique questions (only count answers for questions that exist in questions array)
     const uniqueAnsweredQuestions = new Set(
-      answers.filter((a) => !a.skipped).map((a) => a.questionText)
+      answers
+        .filter((a) => !a.skipped && questionTexts.has(a.questionText))
+        .map((a) => a.questionText)
     );
     const uniqueSkippedQuestions = new Set(
-      answers.filter((a) => a.skipped).map((a) => a.questionText)
+      answers
+        .filter((a) => a.skipped && questionTexts.has(a.questionText))
+        .map((a) => a.questionText)
     );
     const answered = uniqueAnsweredQuestions.size;
     const skipped = uniqueSkippedQuestions.size;
@@ -602,6 +612,7 @@ router.post('/message', async (req: Request, res: Response) => {
     if (llmResponse) {
       // If LLM says END, verify there are no more questions in any topic
       if (llmResponse.next_action === 'END') {
+        // Check all topics to see if there are any remaining questions
         const nextTopicResult = findNextTopicWithQuestions(
           currentTopic,
           interview.selectedTopics,
@@ -611,6 +622,29 @@ router.post('/message', async (req: Request, res: Response) => {
         
         if (nextTopicResult) {
           // LLM was wrong - there are more questions, use fallback
+          // But first, save the current answer if exists
+          if (message) {
+            const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
+            if (lastQuestion && lastQuestion.questionText) {
+              // Check if answer already exists to avoid duplicates
+              const existingAnswer = await Answer.findOne({
+                interviewId,
+                questionText: lastQuestion.questionText,
+              });
+              
+              if (!existingAnswer) {
+                const answer = new Answer({
+                  interviewId,
+                  topicNumber: lastQuestion.topicNumber || currentTopic,
+                  questionText: lastQuestion.questionText,
+                  answerText: message,
+                  skipped: false,
+                });
+                await answer.save();
+              }
+            }
+          }
+          
           const nextQuestion = nextTopicResult.question;
           const nextTopic = nextTopicResult.topic;
           const nextTopicState = topicStates.find((ts: any) => ts.topicNumber === nextTopic);
@@ -624,9 +658,18 @@ router.post('/message', async (req: Request, res: Response) => {
             topic_confidence: nextTopicState?.confidence || 0,
             covered_points: nextTopicState?.coveredPoints || [],
           };
-
-          // IMPORTANT: Save answer BEFORE saving the next bot message
-          // This ensures we find the correct question that was answered
+          
+          const botMessage = new ChatMessage({
+            interviewId,
+            role: 'bot',
+            content: nextQuestion.questionText,
+            topicNumber: nextTopic,
+            questionText: nextQuestion.questionText,
+          });
+          await botMessage.save();
+        } else {
+          // LLM was correct - no more questions, respect the END
+          // Save the current answer if exists before ending
           if (message) {
             const lastQuestion = await findLastQuestionBefore(interviewId, managerMessageTimestamp);
             if (lastQuestion && lastQuestion.questionText) {
@@ -639,7 +682,7 @@ router.post('/message', async (req: Request, res: Response) => {
               if (!existingAnswer) {
                 const answer = new Answer({
                   interviewId,
-                  topicNumber: lastQuestion.topicNumber || nextTopic,
+                  topicNumber: lastQuestion.topicNumber || currentTopic,
                   questionText: lastQuestion.questionText,
                   answerText: message,
                   skipped: false,
@@ -649,16 +692,6 @@ router.post('/message', async (req: Request, res: Response) => {
             }
           }
           
-          const botMessage = new ChatMessage({
-            interviewId,
-            role: 'bot',
-            content: nextQuestion.questionText,
-            topicNumber: nextTopic,
-            questionText: nextQuestion.questionText,
-          });
-          await botMessage.save();
-        } else {
-          // LLM was correct - no more questions
           response = llmResponse;
           
           const botMessage = new ChatMessage({
@@ -1145,12 +1178,22 @@ router.post('/message', async (req: Request, res: Response) => {
     }
 
     // Calculate progress for response
-    // Count unique questions (to avoid counting duplicates)
+    // Create set of valid question texts from questions array
+    const questionTexts = new Set(
+      questions
+        .filter((q: any) => interview.selectedTopics.includes(q.topicNumber) && q.enabled)
+        .map((q: any) => q.questionText)
+    );
+    // Count unique questions (only count answers for questions that exist in questions array)
     const uniqueAnsweredQuestions = new Set(
-      answers.filter((a) => !a.skipped).map((a) => a.questionText)
+      answers
+        .filter((a) => !a.skipped && questionTexts.has(a.questionText))
+        .map((a) => a.questionText)
     );
     const uniqueSkippedQuestions = new Set(
-      answers.filter((a) => a.skipped).map((a) => a.questionText)
+      answers
+        .filter((a) => a.skipped && questionTexts.has(a.questionText))
+        .map((a) => a.questionText)
     );
     const answered = uniqueAnsweredQuestions.size;
     const skipped = uniqueSkippedQuestions.size;
