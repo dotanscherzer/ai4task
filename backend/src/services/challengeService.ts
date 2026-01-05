@@ -93,6 +93,10 @@ export class ChallengeService {
             // Validate challengeId before saving
             console.log(`   🔍 Validating before save: challengeId=${challengeId}, topic=${topic.number}, questions=${questions.length}`);
             
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'challengeService.ts:86',message:'Before saving questions',data:{challengeId:challengeId.toString(),challengeName:data.name,topicNumber:topic.number,questionsCount:questions.length,questionTexts:questions.map((q:string)=>q.substring(0,50))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
             await Question.insertMany(questionDocs);
             totalQuestionsCreated += questions.length;
             
@@ -101,6 +105,11 @@ export class ChallengeService {
               challengeId: challengeId, 
               topicNumber: topic.number 
             }).limit(5).lean();
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'challengeService.ts:100',message:'After saving questions',data:{challengeId:challengeId.toString(),topicNumber:topic.number,savedCount:savedQuestions.length,savedChallengeIds:savedQuestions.map((q:any)=>q.challengeId?.toString())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            
             console.log(`   ✅ Verified: Saved ${savedQuestions.length} questions for challenge ${challengeId}, topic ${topic.number}`);
             console.log(`   ✅ Successfully saved ${questions.length} questions for topic ${topic.number}`);
           } else {
@@ -289,11 +298,20 @@ export class ChallengeService {
   }
 
   async getChallengeQuestions(challengeId: string): Promise<any[]> {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'challengeService.ts:291',message:'Getting questions for challenge',data:{challengeId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
     const questions = await Question.find({
       challengeId: new mongoose.Types.ObjectId(challengeId),
     })
       .sort({ topicNumber: 1, createdAt: 1 })
       .lean();
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'challengeService.ts:297',message:'Questions retrieved',data:{challengeId,questionsCount:questions.length,questionChallengeIds:questions.map((q:any)=>q.challengeId?.toString()),sampleQuestions:questions.slice(0,3).map((q:any)=>({topicNumber:q.topicNumber,text:q.questionText.substring(0,50)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
     return questions;
   }
 

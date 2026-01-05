@@ -443,11 +443,17 @@ export class LLMService {
     challengeDescription: string,
     topic: { number: number; label: string; description: string }
   ): string {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:441',message:'Building prompt for challenge',data:{challengeName,challengeDescription,topicNumber:topic.number,topicLabel:topic.label},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     return `צור 3-4 שאלות מנחות בעברית עבור ריאיון בנושא פירוק HLD ל-Epics/Features/Stories.
 
-פרטי האתגר:
-שם: ${challengeName}
-תיאור: ${challengeDescription}
+**חשוב מאוד**: השאלות חייבות להיות ספציפיות לאתגר הבא בלבד. אל תערבב מידע מאתגרים אחרים.
+
+פרטי האתגר הספציפי הזה:
+שם האתגר: ${challengeName}
+תיאור האתגר: ${challengeDescription}
 
 נושא:
 מספר: ${topic.number}
@@ -455,11 +461,12 @@ export class LLMService {
 תיאור: ${topic.description}
 
 הנחיות:
-- השאלות צריכות להיות רלוונטיות לאתגר הספציפי ולתאים לנושא
+- השאלות צריכות להיות רלוונטיות **רק** לאתגר "${challengeName}" שתואר לעיל
 - השאלות צריכות להיות קצרות, מקצועיות ומנחות
 - השאלות צריכות להיות בעברית
-- השאלות צריכות לעזור להבין את האתגר מנקודת המבט של הנושא
+- השאלות צריכות לעזור להבין את האתגר "${challengeName}" מנקודת המבט של הנושא
 - כל שאלה צריכה להיות שונה וחדשה
+- **אל תכלול מידע מאתגרים אחרים**
 
 החזר JSON בפורמט:
 {
