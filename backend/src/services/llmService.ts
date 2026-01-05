@@ -51,7 +51,9 @@ export class LLMService {
   constructor() {
     const rawKey = process.env.OPENROUTER_API_KEY || '';
     this.apiKey = rawKey.trim();
-    this.model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct:free';
+    // Try different free model names - OpenRouter model naming may vary
+    // Common free models: meta-llama/llama-3.1-8b-instruct, qwen/qwen-2.5-7b-instruct:free, mistralai/mistral-7b-instruct:free
+    this.model = process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct';
     this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
     if (!this.apiKey) {
@@ -75,32 +77,46 @@ export class LLMService {
     try {
       const userPrompt = this.buildUserPrompt(managerMessage, action, context);
 
-      const response = await axios.post(
-        this.baseUrl,
-        {
-          model: this.model,
-          messages: [
-            {
-              role: 'system',
-              content: SYSTEM_PROMPT
-            },
-            {
-              role: 'user',
-              content: userPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2048
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.apiKey}`,
-            'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
-            'X-Title': 'Interview Bot'
+      const requestPayload = {
+        model: this.model,
+        messages: [
+          {
+            role: 'system',
+            content: SYSTEM_PROMPT
           },
-        }
-      );
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
+      };
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:78',message:'getNextAction request',data:{model:this.model,baseUrl:this.baseUrl,hasApiKey:!!this.apiKey,requestPayload},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      let response;
+      try {
+        response = await axios.post(
+          this.baseUrl,
+          requestPayload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${this.apiKey}`,
+              'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
+              'X-Title': 'Interview Bot'
+            },
+          }
+        );
+      } catch (error: any) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:105',message:'getNextAction error',data:{errorMessage:error?.message,status:error?.response?.status,responseData:error?.response?.data,model:this.model},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        throw error;
+      }
 
       let content = response.data.choices?.[0]?.message?.content;
       if (!content) {
@@ -195,37 +211,54 @@ export class LLMService {
         console.log(`      Challenge name: ${challengeName.substring(0, 50)}...`);
         console.log(`      Topic: ${topic.number} - ${topic.label}`);
 
-        const startTime = Date.now();
-        const response = await axios.post(
-          this.baseUrl,
-          {
-            model: this.model,
-            messages: [
-              {
-                role: 'system',
-                content: systemInstruction
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            temperature: 0.7,
-            max_tokens: 2048,
-            response_format: { type: 'json_object' }
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${this.apiKey}`,
-              'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
-              'X-Title': 'Interview Bot'
+        const requestPayload = {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: systemInstruction
             },
-          }
-        );
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2048
+        };
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:198',message:'OpenRouter request payload',data:{model:this.model,baseUrl:this.baseUrl,hasApiKey:!!this.apiKey,apiKeyPrefix:this.apiKey?.substring(0,10),requestPayload},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        
+        const startTime = Date.now();
+        let response;
+        try {
+          response = await axios.post(
+            this.baseUrl,
+            requestPayload,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`,
+                'HTTP-Referer': process.env.OPENROUTER_HTTP_REFERER || 'https://github.com/your-repo',
+                'X-Title': 'Interview Bot'
+              },
+            }
+          );
+        } catch (error: any) {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:225',message:'OpenRouter request error',data:{errorMessage:error?.message,status:error?.response?.status,responseData:error?.response?.data,model:this.model},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          throw error;
+        }
         const duration = Date.now() - startTime;
         console.log(`   ⏱️ LLM request completed in ${duration}ms`);
         console.log(`   📥 Response status: ${response.status}`);
+        
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/dc096220-6349-42a2-b26a-2a102f66ca5d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'llmService.ts:240',message:'OpenRouter response success',data:{status:response.status,hasChoices:!!response.data.choices,choicesLength:response.data.choices?.length,hasContent:!!response.data.choices?.[0]?.message?.content,model:this.model},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
         let content = response.data.choices?.[0]?.message?.content;
         if (!content) {
