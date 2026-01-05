@@ -11,6 +11,44 @@ import mongoose from 'mongoose';
 
 const router = express.Router();
 
+// Helper function to filter out questions from covered_points
+// Questions typically start with question words or end with question marks
+function filterQuestionsFromCoveredPoints(coveredPoints: string[]): string[] {
+  const questionIndicators = [
+    'איך', 'מה', 'מי', 'למה', 'איפה', 'מתי', 'האם', 'איזה', 'כיצד', 
+    'למעש', 'מהי', 'מהו', 'מהיי', 'מהוו', 'איך', 'כיצד', 'איך', 'מהי',
+    'איך האתגר', 'איך ניתן', 'איך נדע', 'איך יכולים', 'איך יוכל', 'איך יכולה',
+    'מהי הלוגיקה', 'מהי הקבוצה', 'מהי הסכנה', 'מהי כמות',
+    'איזה אנשים', 'איזה סוגי', 'איזה Best', 'איזה בעיות',
+    'למה לא', 'למה זה',
+    'כיצד ניתן', 'כיצד יכול', 'כיצד AI',
+    'האם ניתן', 'האם פתרון', 'האם תרשימי', 'האם נדרשת', 'האם נדרש',
+    'מתי נוכלל',
+    'באיזה דרך', 'באיזה אופן', 'באיזה צורה'
+  ];
+  
+  return coveredPoints.filter((point: string) => {
+    const trimmed = point.trim();
+    
+    // Skip empty points
+    if (!trimmed) return false;
+    
+    // Check if it's a question (starts with question word or ends with ?)
+    const isQuestion = questionIndicators.some((indicator) => 
+      trimmed.startsWith(indicator) || trimmed.endsWith('?')
+    );
+    
+    // Also check if it's very short (likely not a learning point)
+    const isTooShort = trimmed.length < 10;
+    
+    // Check if it contains question patterns (like "איך...יכול")
+    const hasQuestionPattern = /איך.*יכול|מה.*יכול|כיצד.*יכול|איך.*ניתן|מה.*ניתן/.test(trimmed);
+    
+    // Keep only if it's NOT a question, has reasonable length, and doesn't have question patterns
+    return !isQuestion && !isTooShort && !hasQuestionPattern;
+  });
+}
+
 // Helper function to find next topic with remaining questions
 function findNextTopicWithQuestions(
   currentTopic: number,
@@ -717,9 +755,13 @@ router.post('/message', async (req: Request, res: Response) => {
             if (topicStateDoc) {
               topicStateDoc.confidence = llmResponse.topic_confidence;
               if (llmResponse.covered_points.length > 0) {
-                topicStateDoc.coveredPoints = [
-                  ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-                ];
+                // Filter out questions from covered_points
+                const filteredCoveredPoints = filterQuestionsFromCoveredPoints(llmResponse.covered_points);
+                if (filteredCoveredPoints.length > 0) {
+                  topicStateDoc.coveredPoints = [
+                    ...new Set([...currentTopicState.coveredPoints, ...filteredCoveredPoints]),
+                  ];
+                }
               }
               await topicStateDoc.save();
             }
@@ -876,9 +918,13 @@ router.post('/message', async (req: Request, res: Response) => {
                 if (topicStateDoc) {
                   topicStateDoc.confidence = llmResponse.topic_confidence;
                   if (llmResponse.covered_points.length > 0) {
-                    topicStateDoc.coveredPoints = [
-                      ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-                    ];
+                    // Filter out questions from covered_points
+                    const filteredCoveredPoints = filterQuestionsFromCoveredPoints(llmResponse.covered_points);
+                    if (filteredCoveredPoints.length > 0) {
+                      topicStateDoc.coveredPoints = [
+                        ...new Set([...currentTopicState.coveredPoints, ...filteredCoveredPoints]),
+                      ];
+                    }
                   }
                   await topicStateDoc.save();
                 }
@@ -936,9 +982,13 @@ router.post('/message', async (req: Request, res: Response) => {
               if (topicStateDoc) {
                 topicStateDoc.confidence = llmResponse.topic_confidence;
                 if (llmResponse.covered_points.length > 0) {
-                  topicStateDoc.coveredPoints = [
-                    ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-                  ];
+                  // Filter out questions from covered_points
+                  const filteredCoveredPoints = filterQuestionsFromCoveredPoints(llmResponse.covered_points);
+                  if (filteredCoveredPoints.length > 0) {
+                    topicStateDoc.coveredPoints = [
+                      ...new Set([...currentTopicState.coveredPoints, ...filteredCoveredPoints]),
+                    ];
+                  }
                 }
                 await topicStateDoc.save();
               }
@@ -988,26 +1038,30 @@ router.post('/message', async (req: Request, res: Response) => {
           });
           await botMessage.save();
 
-          // Update topic state
-          if (currentTopicState) {
-            const topicStateDoc = await TopicState.findOne({
-              interviewId,
-              topicNumber: currentTopicState.topicNumber,
-            });
-            if (topicStateDoc) {
-              topicStateDoc.confidence = llmResponse.topic_confidence;
-              if (llmResponse.covered_points.length > 0) {
-                topicStateDoc.coveredPoints = [
-                  ...new Set([...currentTopicState.coveredPoints, ...llmResponse.covered_points]),
-                ];
+            // Update topic state
+            if (currentTopicState) {
+              const topicStateDoc = await TopicState.findOne({
+                interviewId,
+                topicNumber: currentTopicState.topicNumber,
+              });
+              if (topicStateDoc) {
+                topicStateDoc.confidence = llmResponse.topic_confidence;
+                if (llmResponse.covered_points.length > 0) {
+                  // Filter out questions from covered_points
+                  const filteredCoveredPoints = filterQuestionsFromCoveredPoints(llmResponse.covered_points);
+                  if (filteredCoveredPoints.length > 0) {
+                    topicStateDoc.coveredPoints = [
+                      ...new Set([...currentTopicState.coveredPoints, ...filteredCoveredPoints]),
+                    ];
+                  }
+                }
+                await topicStateDoc.save();
               }
-              await topicStateDoc.save();
             }
           }
         }
-      }
-    } else {
-      // Fallback: use static questions (only those not already asked)
+      } else {
+        // Fallback: use static questions (only those not already asked)
       let nextQuestion = remainingQuestions[0];
       let nextTopic = currentTopic;
       let nextTopicState = currentTopicState;
